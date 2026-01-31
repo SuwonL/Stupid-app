@@ -1,0 +1,5 @@
+{
+  "name": "stupid-app",
+  "private": true,
+  "description": "Root package for Vercel; actual app is in frontend/"
+}

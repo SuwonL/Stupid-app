@@ -1,0 +1,11 @@
+.vercel
+backend/target
+node_modules
+
+# API 키 등 비밀 설정 (절대 커밋하지 말 것)
+application-local.properties
+backend/application-local.properties
+**/application-local.properties
+.env
+.env.local
+.env.*.local
