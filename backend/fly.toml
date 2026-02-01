@@ -16,12 +16,12 @@ primary_region = 'nrt'
   min_machines_running = 0
   processes = ['app']
 
-# 무료 티어: 256MB VM 1대. OOM 시 memory_mb=512, -Xmx256m -Xms128m 로 변경
+# 256MB는 기동 중 OOM으로 8080 리스닝 전에 종료됨. 512MB + 힙 제한으로 기동 보장
 [env]
-  JAVA_TOOL_OPTIONS = "-Xmx192m -Xms64m -XX:MaxMetaspaceSize=48m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=24m"
+  JAVA_TOOL_OPTIONS = "-Xmx256m -Xms128m"
 
 [[vm]]
-  memory = '256mb'
+  memory = '512mb'
   cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 256
+  memory_mb = 512

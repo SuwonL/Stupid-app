@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.ZonedDateTime;
@@ -138,8 +139,25 @@ public class YouTubeService {
             Collections.shuffle(list);
             return new YouTubeSearchResult(list.stream().limit(9).collect(Collectors.toList()), null);
         } catch (Exception e) {
-            log.warn("YouTube 재료 검색 실패 (q: {}). 예외: {} - API 키(APP_YOUTUBE_API_KEY), 할당량, YouTube Data API v3 사용 설정을 확인하세요.", q, e.getMessage());
-            return new YouTubeSearchResult(List.of(), "YouTube 검색 실패: " + (e.getMessage() != null ? e.getMessage() : "연결 오류"));
+            String friendlyReason = null;
+            if (e instanceof HttpStatusCodeException ex) {
+                if (ex.getStatusCode().value() == 403) {
+                    String body = ex.getResponseBodyAsString();
+                    if (body != null && (body.contains("quotaExceeded") || body.contains("quota"))) {
+                        friendlyReason = "YouTube API 일일 할당량을 초과했습니다. 내일 다시 시도하거나 Google Cloud Console에서 할당량을 확인하세요.";
+                    } else {
+                        friendlyReason = "YouTube API 접근이 거부되었습니다(403). API 키·YouTube Data API v3 사용 설정을 확인하세요.";
+                    }
+                }
+            }
+            if (friendlyReason == null && e.getMessage() != null && (e.getMessage().contains("403") || e.getMessage().contains("quota"))) {
+                friendlyReason = "YouTube API 일일 할당량을 초과했습니다. 내일 다시 시도하세요.";
+            }
+            if (friendlyReason == null) {
+                friendlyReason = "YouTube 검색 실패: " + (e.getMessage() != null ? e.getMessage() : "연결 오류");
+            }
+            log.warn("YouTube 재료 검색 실패 (q: {}). {} - API 키(APP_YOUTUBE_API_KEY), 할당량, YouTube Data API v3 사용 설정을 확인하세요.", q, friendlyReason);
+            return new YouTubeSearchResult(List.of(), friendlyReason);
         }
     }
 
