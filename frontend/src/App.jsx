@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Beef, Carrot, UtensilsCrossed } from 'lucide-react'
 import { getIngredients, recommendRecipes, getYoutubeRecipeSteps } from './api'
 import './App.css'
@@ -48,6 +48,7 @@ function App() {
   const [hasSearched, setHasSearched] = useState(false)
   const [youtubeDialog, setYoutubeDialog] = useState(null)
   const [youtubeSteps, setYoutubeSteps] = useState({ loading: false, error: null, steps: [], title: '' })
+  const ingredientsAbortRef = useRef(null)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -59,17 +60,35 @@ function App() {
   const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'))
 
   const loadIngredients = () => {
+    ingredientsAbortRef.current?.abort()
+    const controller = new AbortController()
+    ingredientsAbortRef.current = controller
     setIngredientsLoading(true)
     setError(null)
-    getIngredients()
+    getIngredients(controller.signal)
       .then(setIngredients)
       .catch((e) => setError(e.message))
-      .finally(() => setIngredientsLoading(false))
+      .finally(() => {
+        ingredientsAbortRef.current = null
+        setIngredientsLoading(false)
+      })
   }
 
   useEffect(() => {
     loadIngredients()
   }, [])
+
+  useEffect(() => {
+    if (!ingredientsLoading) return
+    const t = setTimeout(() => {
+      if (ingredientsAbortRef.current) {
+        setError('재료 목록을 불러올 수 없습니다. (20초 초과) 재시도해 보세요.')
+        setIngredientsLoading(false)
+        ingredientsAbortRef.current = null
+      }
+    }, 20000)
+    return () => clearTimeout(t)
+  }, [ingredientsLoading])
 
   const MAX_INGREDIENTS = 10
   const toggleIngredient = (id) => {
@@ -151,23 +170,18 @@ function App() {
       <section className="input-section card">
         <h2 className="section-title">재료 선택 (최대 {MAX_INGREDIENTS}개)</h2>
         {ingredientsLoading && (
-          <p className="ingredients-loading"><span className="spinner-inline" /> 재료 목록 불러오는 중…</p>
+          <div className="ingredients-loading-wrap">
+            <p className="ingredients-loading"><span className="spinner-inline" /> 재료 목록 불러오는 중… (최대 20초)</p>
+            <button type="button" className="cancel-load-btn" onClick={() => ingredientsAbortRef.current?.abort()}>
+              로딩 중단
+            </button>
+          </div>
         )}
         {!ingredientsLoading && ingredients.length === 0 && error && (
           <div className="ingredients-error">
-            <p>재료 목록을 불러오지 못했습니다.<br /><small>{error}</small></p>
-            <p className="ingredients-error-hint">백엔드(Fly.io)가 켜져 있는지 확인하고, 아래 링크로 접속해 JSON이 보이면 서버는 정상입니다.</p>
-            <a
-              href="https://backend-little-cloud-7780.fly.dev/api/ingredients"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ingredients-error-link"
-            >
-              백엔드 재료 API 열기
-            </a>
-            <button type="button" className="retry-btn" onClick={loadIngredients}>
-              재시도
-            </button>
+            <p>재료 목록을 불러올 수 없습니다.</p>
+            <p className="ingredients-error-detail">{error}</p>
+            <button type="button" className="retry-btn" onClick={loadIngredients}>재시도</button>
           </div>
         )}
         {!ingredientsLoading && ingredients.length === 0 && !error && (
@@ -211,8 +225,8 @@ function App() {
 
       <section className="result-section">
         <h2 className="section-title">추천 메뉴</h2>
-        {hasSearched && !loading && !error && recommendResult && recommendResult.youtubeRecommendations.length === 0 && (
-          <p className="empty">추천 결과가 없습니다. 다른 재료를 선택해 보세요.</p>
+        {hasSearched && !loading && !error && recommendResult && recommendResult.youtubeRecommendations?.length === 0 && (!recommendResult.recipeRecommendations?.length) && (
+          <p className="empty">추천 결과가 없습니다. Fly.io에 APP_YOUTUBE_API_KEY를 설정하면 유튜브 영상이 표시됩니다. (재료 선택 후 다시 시도해 보세요.)</p>
         )}
         {!hasSearched && !loading && !error && (
           <p className="empty">재료를 선택한 뒤 메뉴 추천을 눌러 주세요.</p>
@@ -233,7 +247,7 @@ function App() {
                     onKeyDown={(e) => e.key === 'Enter' && openYoutubeDialog(v)}
                   >
                     <div className="card-image-placeholder">
-                      <img src={`https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg`} alt="" />
+                      <img src={`https://img.youtube.com/vi/${v.videoId}/sddefault.jpg`} alt="" loading="lazy" />
                     </div>
                     <div className="card-body">
                       <h3 className="card-title">{v.title || '영상 보기'}</h3>

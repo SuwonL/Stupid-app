@@ -137,10 +137,13 @@
   box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
 }
 
+.ingredients-loading-wrap {
+  margin-bottom: 0.75rem;
+}
 .ingredients-loading,
 .ingredients-error,
 .ingredients-empty {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
   padding: 0.5rem 0;
   color: var(--text-muted);
   font-size: 0.9rem;
@@ -149,32 +152,30 @@
   color: var(--error-text);
 }
 .ingredients-error p {
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.25rem;
 }
-.ingredients-error small {
-  display: block;
-  margin-top: 0.25rem;
+.ingredients-error-detail {
   font-size: 0.8rem;
-  opacity: 0.9;
   white-space: pre-wrap;
+  margin: 0 0 0.5rem;
+  opacity: 0.95;
 }
-.ingredients-error-hint {
+.cancel-load-btn {
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.75rem;
   font-size: 0.85rem;
-  color: var(--text-muted);
-  margin-top: 0.5rem !important;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+  color: var(--text);
+  cursor: pointer;
 }
-.ingredients-error-link {
-  display: inline-block;
-  margin: 0.5rem 0;
-  color: var(--primary);
-  font-size: 0.9rem;
-}
-.ingredients-error-link:hover {
-  text-decoration: underline;
+.cancel-load-btn:hover {
+  background: var(--border);
 }
 .retry-btn {
   display: block;
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
   padding: 0.5rem 1rem;
   background: var(--primary);
   color: var(--bg);

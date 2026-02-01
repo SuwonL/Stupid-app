@@ -16,8 +16,12 @@ primary_region = 'nrt'
   min_machines_running = 0
   processes = ['app']
 
+# 256MB는 Spring Boot 기동 중 OOM 킬됨. 512MB + 힙 제한 필요
+[env]
+  JAVA_TOOL_OPTIONS = "-Xmx256m -Xms128m"
+
 [[vm]]
-  memory = '1gb'
+  memory = '512mb'
   cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 256
+  memory_mb = 512
