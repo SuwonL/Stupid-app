@@ -40,6 +40,7 @@ function App() {
     }
   })
   const [ingredients, setIngredients] = useState([])
+  const [ingredientsLoading, setIngredientsLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [recommendResult, setRecommendResult] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -58,7 +59,12 @@ function App() {
   const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'))
 
   useEffect(() => {
-    getIngredients().then(setIngredients).catch((e) => setError(e.message))
+    setIngredientsLoading(true)
+    setError(null)
+    getIngredients()
+      .then(setIngredients)
+      .catch((e) => setError(e.message))
+      .finally(() => setIngredientsLoading(false))
   }, [])
 
   const MAX_INGREDIENTS = 10
@@ -79,6 +85,9 @@ function App() {
       setError('재료를 선택해 주세요.')
       return
     }
+    const requestedTagNames = ingredients
+      .filter((i) => selectedIdList.includes(i.id))
+      .map((i) => i.name)
     setHasSearched(true)
     setLoading(true)
     setRecommendResult(null)
@@ -88,6 +97,7 @@ function App() {
       .then((res) => setRecommendResult({
         youtubeRecommendations: res.youtubeRecommendations || [],
         recipeRecommendations: res.recipeRecommendations || [],
+        requestedTagNames,
       }))
       .catch((e) => setError(e.message || '메뉴 추천 요청에 실패했습니다.'))
       .finally(() => setLoading(false))
@@ -136,6 +146,15 @@ function App() {
 
       <section className="input-section card">
         <h2 className="section-title">재료 선택 (최대 {MAX_INGREDIENTS}개)</h2>
+        {ingredientsLoading && (
+          <p className="ingredients-loading"><span className="spinner-inline" /> 재료 목록 불러오는 중…</p>
+        )}
+        {!ingredientsLoading && ingredients.length === 0 && error && (
+          <p className="ingredients-error">재료 목록을 불러오지 못했습니다. 새로고침해 보세요.<br /><small>{error}</small></p>
+        )}
+        {!ingredientsLoading && ingredients.length === 0 && !error && (
+          <p className="ingredients-empty">재료 목록이 없습니다.</p>
+        )}
         <div className="ingredient-groups">
           {groupByCategory(ingredients).map(({ category, items }) => (
             <div key={category} className="ingredient-group">
@@ -182,7 +201,7 @@ function App() {
         )}
 
         {recommendResult?.youtubeRecommendations?.length > 0 && (() => {
-          const selectedTagNames = ingredients.filter((i) => selectedIds.has(i.id)).map((i) => i.name)
+          const requestedTagNames = recommendResult.requestedTagNames || []
           return (
             <div className="recommend-group">
               <div className="recipe-grid">
@@ -200,8 +219,8 @@ function App() {
                     </div>
                     <div className="card-body">
                       <h3 className="card-title">{v.title || '영상 보기'}</h3>
-                      {selectedTagNames.length > 0 && (
-                        <p className="card-tags">검색: {selectedTagNames.join(' · ')}</p>
+                      {requestedTagNames.length > 0 && (
+                        <p className="card-tags">검색: {requestedTagNames.join(' · ')}</p>
                       )}
                       <p className="card-hint">클릭하면 영상 + 자막 레시피 보기</p>
                     </div>
