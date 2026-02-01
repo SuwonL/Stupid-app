@@ -73,8 +73,8 @@ public class YouTubeService {
         }
     }
 
-    /** 선택한 재료 이름으로 유튜브 검색 (재료만 들어가는 영상). 최대 15건 조회 후 9개 랜덤 반환 */
-    public List<YouTubeVideoResult> searchByIngredients(List<String> ingredientNames) {
+    /** 선택한 재료 이름으로 유튜브 검색. strictOnly=true면 "해당 재료만", false면 "다양하게" 검색. 최대 15건 조회 후 9개 랜덤 반환 */
+    public List<YouTubeVideoResult> searchByIngredients(List<String> ingredientNames, boolean strictOnly) {
         if (apiKey == null || apiKey.isBlank()) {
             if (!loggedNoKey) {
                 loggedNoKey = true;
@@ -89,7 +89,7 @@ public class YouTubeService {
                 .limit(10)
                 .collect(Collectors.joining(" "));
         if (q.isBlank()) return List.of();
-        q = q + " 레시피";
+        q = strictOnly ? (q + " 만으로 만드는 레시피") : (q + " 레시피");
         String publishedAfter = ZonedDateTime.now().minusYears(1).format(DateTimeFormatter.ISO_INSTANT);
         try {
             Map<String, ?> response = restTemplate.getForObject(SEARCH_URL_MULTI, Map.class, q, publishedAfter, apiKey);

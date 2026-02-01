@@ -43,11 +43,12 @@ export async function getIngredients(abortSignal = null) {
   return parseJsonUtf8(res, url)
 }
 
-export async function recommendRecipes({ ingredientIds, ingredientNames }) {
+export async function recommendRecipes({ ingredientIds, ingredientNames, strictOnly }) {
   const url = `${API_BASE}/recipes/recommend`
   const body = {}
   if (ingredientIds?.length) body.ingredientIds = ingredientIds
   if (ingredientNames?.length) body.ingredientNames = ingredientNames
+  if (strictOnly === true) body.strictOnly = true
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json;charset=UTF-8' },

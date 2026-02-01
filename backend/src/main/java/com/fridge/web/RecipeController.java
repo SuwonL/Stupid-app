@@ -45,7 +45,8 @@ public class RecipeController {
     public ResponseEntity<RecommendResponse> recommend(@RequestBody RecommendRequest request) {
         RecommendResponse result = recipeRecommendService.recommendByIngredients(
                 request.getIngredientIds(),
-                request.getIngredientNames()
+                request.getIngredientNames(),
+                request.getStrictOnly()
         );
         return ResponseEntity.ok(result);
     }

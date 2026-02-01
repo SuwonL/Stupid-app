@@ -1,9 +1,14 @@
 package com.fridge.service;
 
+import com.fridge.dto.RecipeDto;
 import com.fridge.dto.RecommendResponse;
 import com.fridge.dto.YoutubeRecommendationDto;
 import com.fridge.entity.Ingredient;
+import com.fridge.entity.Recipe;
+import com.fridge.entity.RecipeIngredient;
 import com.fridge.repository.IngredientRepository;
+import com.fridge.repository.RecipeIngredientRepository;
+import com.fridge.repository.RecipeRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,18 +18,22 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/** 재료 기준 유튜브 추천만 반환. DB·Spoonacular 레시피 추천 없음. */
+/** 검색 모드: strictOnly=true면 선택 재료만, false면 선택 재료 포함 다양하게 검색. */
 @Service
 @RequiredArgsConstructor
 public class RecipeRecommendService {
 
     private static final Logger log = LoggerFactory.getLogger(RecipeRecommendService.class);
+    private static final int MAX_RECIPE_RECOMMENDATIONS = 10;
 
     private final IngredientRepository ingredientRepository;
+    private final RecipeRepository recipeRepository;
+    private final RecipeIngredientRepository recipeIngredientRepository;
     private final YouTubeService youTubeService;
 
     @Transactional(readOnly = true)
-    public RecommendResponse recommendByIngredients(List<Long> ingredientIds, List<String> ingredientNames) {
+    public RecommendResponse recommendByIngredients(List<Long> ingredientIds, List<String> ingredientNames, Boolean strictOnly) {
+        boolean strict = Boolean.TRUE.equals(strictOnly);
         Set<Long> allIds = new HashSet<>();
         if (ingredientIds != null) allIds.addAll(ingredientIds);
         if (ingredientNames != null) {
@@ -46,14 +55,43 @@ public class RecipeRecommendService {
             }
         }
 
-        List<YoutubeRecommendationDto> youtubeRecommendations = youTubeService.searchByIngredients(namesForApi).stream()
+        List<YoutubeRecommendationDto> youtubeRecommendations = youTubeService.searchByIngredients(namesForApi, strict).stream()
                 .map(v -> YoutubeRecommendationDto.builder().videoId(v.getVideoId()).title(v.getTitle()).build())
                 .collect(Collectors.toList());
-        if (youtubeRecommendations.isEmpty()) log.debug("유튜브 추천 없음: names={}", namesForApi);
+        if (youtubeRecommendations.isEmpty()) log.debug("유튜브 추천 없음: names={}, strict={}", namesForApi, strict);
+
+        List<RecipeDto> recipeRecommendations = List.of();
+        if (!allIds.isEmpty()) {
+            List<Recipe> recipes = strict
+                    ? recipeRepository.findRecipesByAvailableIngredients(new ArrayList<>(allIds))
+                    : recipeRepository.findRecipesUsingAnyIngredient(new ArrayList<>(allIds));
+            recipeRecommendations = recipes.stream()
+                    .map(r -> toRecipeDto(r))
+                    .collect(Collectors.toList());
+            Collections.shuffle(recipeRecommendations);
+            recipeRecommendations = recipeRecommendations.stream().limit(MAX_RECIPE_RECOMMENDATIONS).collect(Collectors.toList());
+        }
 
         return RecommendResponse.builder()
                 .youtubeRecommendations(youtubeRecommendations)
-                .recipeRecommendations(List.of())
+                .recipeRecommendations(recipeRecommendations)
+                .build();
+    }
+
+    private RecipeDto toRecipeDto(Recipe r) {
+        List<String> ingredientNames = recipeIngredientRepository.findAllByRecipeId(r.getId()).stream()
+                .map(RecipeIngredient::getIngredient)
+                .map(Ingredient::getName)
+                .collect(Collectors.toList());
+        return RecipeDto.builder()
+                .id(r.getId())
+                .name(r.getName())
+                .description(r.getDescription())
+                .imageUrl(r.getImageUrl())
+                .mainCategory(r.getMainCategory())
+                .subCategory(r.getSubCategory())
+                .ingredientNames(ingredientNames)
+                .youtubeVideoId(null)
                 .build();
     }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Beef, Carrot, UtensilsCrossed } from 'lucide-react'
-import { getIngredients, recommendRecipes, getYoutubeRecipeSteps } from './api'
+import { getIngredients, recommendRecipes, getYoutubeRecipeSteps, getRecipeDetail } from './api'
 import './App.css'
 
 const THEME_KEY = 'fridge-menu-theme'
@@ -48,6 +48,8 @@ function App() {
   const [hasSearched, setHasSearched] = useState(false)
   const [youtubeDialog, setYoutubeDialog] = useState(null)
   const [youtubeSteps, setYoutubeSteps] = useState({ loading: false, error: null, steps: [], title: '' })
+  const [recipeDetail, setRecipeDetail] = useState(null)
+  const [searchMode, setSearchMode] = useState('diverse')
   const ingredientsAbortRef = useRef(null)
 
   useEffect(() => {
@@ -116,11 +118,13 @@ function App() {
     setRecommendResult(null)
     recommendRecipes({
       ingredientIds: selectedIdList,
+      strictOnly: searchMode === 'only',
     })
       .then((res) => setRecommendResult({
         youtubeRecommendations: res.youtubeRecommendations || [],
         recipeRecommendations: res.recipeRecommendations || [],
         requestedTagNames,
+        strictOnly: searchMode === 'only',
       }))
       .catch((e) => setError(e.message || '메뉴 추천 요청에 실패했습니다.'))
       .finally(() => setLoading(false))
@@ -146,6 +150,17 @@ function App() {
       .then((res) => setYoutubeSteps({ loading: false, error: null, steps: res.steps || [], title: res.title || youtubeDialog.title }))
       .catch((e) => setYoutubeSteps((prev) => ({ ...prev, loading: false, error: e.message || '자막을 불러오지 못했습니다.', steps: [] })))
   }, [youtubeDialog?.videoId])
+
+  const openRecipeDetail = (r) => setRecipeDetail({ loading: true, error: null, data: { id: r.id, name: r.name } })
+  const closeRecipeDetail = () => setRecipeDetail(null)
+
+  useEffect(() => {
+    if (!recipeDetail?.loading || !recipeDetail?.data?.id) return
+    const id = recipeDetail.data.id
+    getRecipeDetail(id)
+      .then((d) => setRecipeDetail({ loading: false, error: null, data: d }))
+      .catch((e) => setRecipeDetail((prev) => ({ ...prev, loading: false, error: e.message || '상세를 불러오지 못했습니다.' })))
+  }, [recipeDetail?.loading, recipeDetail?.data?.id])
 
   return (
     <div className="app">
@@ -212,6 +227,23 @@ function App() {
         </div>
 
         <div className="action-buttons">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={searchMode === 'only'}
+            className={`search-mode-toggle-btn ${searchMode === 'only' ? 'on' : ''}`}
+            onClick={() => setSearchMode((m) => (m === 'diverse' ? 'only' : 'diverse'))}
+            disabled={loading}
+            title={searchMode === 'diverse' ? '해당 재료만 검색으로 전환' : '다양하게 검색으로 전환'}
+            aria-label={`검색 방식: ${searchMode === 'diverse' ? '다양하게 검색' : '해당 재료만 검색'}. 클릭하면 전환`}
+          >
+            <span className="toggle-track" aria-hidden>
+              <span className="toggle-thumb" />
+            </span>
+            <span className="toggle-label">
+              {searchMode === 'diverse' ? '다양하게' : '해당 재료만'}
+            </span>
+          </button>
           <button type="button" className="recommend-btn" onClick={handleRecommend} disabled={loading}>
             {loading ? '추천 중…' : '메뉴 추천'}
           </button>
@@ -226,7 +258,7 @@ function App() {
       <section className="result-section">
         <h2 className="section-title">추천 메뉴</h2>
         {hasSearched && !loading && !error && recommendResult && recommendResult.youtubeRecommendations?.length === 0 && (!recommendResult.recipeRecommendations?.length) && (
-          <p className="empty">추천 결과가 없습니다. Fly.io에 APP_YOUTUBE_API_KEY를 설정하면 유튜브 영상이 표시됩니다. (재료 선택 후 다시 시도해 보세요.)</p>
+          <p className="empty">추천 결과가 없습니다. 재료 선택 후 다시 시도해 보세요.</p>
         )}
         {!hasSearched && !loading && !error && (
           <p className="empty">재료를 선택한 뒤 메뉴 추천을 눌러 주세요.</p>
@@ -236,6 +268,9 @@ function App() {
           const requestedTagNames = recommendResult.requestedTagNames || []
           return (
             <div className="recommend-group">
+              <h3 className="recommend-subtitle">
+                {recommendResult.strictOnly ? '유튜브 (선택한 재료만으로 만드는 레시피)' : '유튜브 (선택 재료 포함 다양한 레시피)'}
+              </h3>
               <div className="recipe-grid">
                 {recommendResult.youtubeRecommendations.map((v) => (
                   <article
@@ -262,6 +297,34 @@ function App() {
             </div>
           )
         })()}
+        {recommendResult?.recipeRecommendations?.length > 0 && (
+          <div className="recommend-group">
+            <h3 className="recommend-subtitle">
+              {recommendResult.strictOnly ? '레시피 (선택한 재료만 사용)' : '레시피 (선택 재료 포함)'}
+            </h3>
+            <div className="recipe-grid">
+              {recommendResult.recipeRecommendations.map((r) => (
+                <article
+                  key={r.id}
+                  role="button"
+                  tabIndex={0}
+                  className="recipe-card card db-recipe-card"
+                  onClick={() => openRecipeDetail(r)}
+                  onKeyDown={(e) => e.key === 'Enter' && openRecipeDetail(r)}
+                >
+                  <div className="card-body">
+                    <h3 className="card-title">{r.name}</h3>
+                    {r.description && <p className="card-desc">{r.description}</p>}
+                    {r.ingredientNames?.length > 0 && (
+                      <p className="card-tags">재료: {r.ingredientNames.join(', ')}</p>
+                    )}
+                    <p className="card-hint">클릭하면 상세 레시피 보기</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {youtubeDialog && (
@@ -296,6 +359,51 @@ function App() {
                 </ol>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {recipeDetail != null && (
+        <div className="modal-backdrop" onClick={closeRecipeDetail} role="presentation">
+          <div className="modal card recipe-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="modal-close" onClick={closeRecipeDetail} aria-label="닫기">×</button>
+            {recipeDetail.loading && (
+              <div className="recipe-detail-loading"><span className="spinner-inline" /> 레시피 불러오는 중…</div>
+            )}
+            {recipeDetail.error && (
+              <p className="recipe-detail-error">{recipeDetail.error}</p>
+            )}
+            {!recipeDetail.loading && !recipeDetail.error && recipeDetail.data && (() => {
+              const d = recipeDetail.data
+              const hasDetail = d.steps?.length > 0 || d.ingredientsWithAmount?.length > 0
+              if (!hasDetail) return <p className="empty">상세 정보가 없습니다.</p>
+              return (
+                <>
+                  <h2 className="modal-title">{d.name}</h2>
+                  {d.description && <p className="recipe-detail-desc">{d.description}</p>}
+                  {d.ingredientsWithAmount?.length > 0 && (
+                    <div className="detail-block">
+                      <h3>재료</h3>
+                      <ul className="ingredients-list">
+                        {d.ingredientsWithAmount.map((ing, i) => (
+                          <li key={i}>{ing}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {d.steps?.length > 0 && (
+                    <div className="detail-block">
+                      <h3>조리 순서</h3>
+                      <ol className="steps-list">
+                        {d.steps.map((step, i) => (
+                          <li key={i}>{step}</li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </div>
         </div>
       )}
