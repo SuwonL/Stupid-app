@@ -255,6 +255,7 @@
   font-size: 0.875rem;
   border-left: 3px solid var(--error-text);
   transition: opacity 0.2s ease;
+  white-space: pre-wrap; /* 여러 줄 진단 메시지 표시 */
 }
 
 .result-section {
