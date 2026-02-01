@@ -33,7 +33,7 @@ public class YoutubeTranscriptService {
     /** 설명에서 번호·줄 단위로 잘라낼 때 최소 길이 */
     private static final int MIN_DESC_STEP_LENGTH = 10;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private final YouTubeService youTubeService;
 
     public YoutubeRecipeStepsDto getRecipeSteps(String videoId, String videoTitle) {

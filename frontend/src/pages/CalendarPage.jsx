@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { toPng } from 'html-to-image'
+import { Pencil } from 'lucide-react'
 import CalendarGrid from '../components/calendar/CalendarGrid'
+import DatePickerField from '../components/calendar/DatePickerField'
 import './CalendarPage.css'
 
 const STYLES = [
@@ -33,28 +35,41 @@ export default function CalendarPage() {
   const [eventEndDate, setEventEndDate] = useState('')
   const [eventContent, setEventContent] = useState('')
   const [eventColor, setEventColor] = useState(PRESET_COLORS[0])
-  const [exporting, setExporting] = useState(false)
   const [calendarImageDataUrl, setCalendarImageDataUrl] = useState(null)
   const exportRef = useRef(null)
   const nextIdRef = useRef(1)
   const colorDropdownRef = useRef(null)
   const [colorDropdownOpen, setColorDropdownOpen] = useState(false)
+  const [editingEventId, setEditingEventId] = useState(null)
+  const [editDate, setEditDate] = useState(getDefaultDate())
+  const [editEndDate, setEditEndDate] = useState('')
+  const [editContent, setEditContent] = useState('')
+  const [editColor, setEditColor] = useState(PRESET_COLORS[0])
 
+  /* 색상 드롭다운: 열린 직후 같은 탭이 바깥 클릭으로 처리되지 않도록 지연 후 리스너 등록 */
   useEffect(() => {
     if (!colorDropdownOpen) return
-    const handleClickOutside = (e) => {
+    const handleOutside = (e) => {
       if (colorDropdownRef.current && !colorDropdownRef.current.contains(e.target)) {
         setColorDropdownOpen(false)
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    const t = setTimeout(() => {
+      document.addEventListener('mousedown', handleOutside)
+      document.addEventListener('touchstart', handleOutside, { passive: true })
+    }, 200)
+    return () => {
+      clearTimeout(t)
+      document.removeEventListener('mousedown', handleOutside)
+      document.removeEventListener('touchstart', handleOutside)
+    }
   }, [colorDropdownOpen])
 
-  /* 달력을 이미지로 렌더링해 우클릭 저장 가능하게 */
+  /* 달력을 이미지로 렌더링해 우클릭 저장 가능하게. 모바일에서 메인 스레드 블로킹 방지로 지연 후 실행 */
   useEffect(() => {
+    let cancelled = false
     const t = setTimeout(() => {
-      if (!exportRef.current) return
+      if (!exportRef.current || cancelled) return
       const opt = {
         pixelRatio: 2,
         width: EXPORT_WIDTH,
@@ -62,10 +77,13 @@ export default function CalendarPage() {
         style: { width: EXPORT_WIDTH, height: EXPORT_HEIGHT },
       }
       toPng(exportRef.current, opt)
-        .then(setCalendarImageDataUrl)
-        .catch(() => setCalendarImageDataUrl(null))
-    }, 200)
-    return () => clearTimeout(t)
+        .then((url) => { if (!cancelled) setCalendarImageDataUrl(url) })
+        .catch(() => { if (!cancelled) setCalendarImageDataUrl(null) })
+    }, 400)
+    return () => {
+      cancelled = true
+      clearTimeout(t)
+    }
   }, [year, month, events, styleId])
 
   const addEvent = () => {
@@ -80,6 +98,30 @@ export default function CalendarPage() {
 
   const removeEvent = (id) => {
     setEvents((prev) => prev.filter((e) => e.id !== id))
+  }
+
+  const startEditEvent = (ev) => {
+    setEditingEventId(ev.id)
+    setEditDate(ev.date)
+    setEditEndDate(ev.endDate && ev.endDate !== ev.date ? ev.endDate : '')
+    setEditContent(ev.content)
+    setEditColor(ev.color || PRESET_COLORS[0])
+  }
+
+  const saveEditEvent = () => {
+    const content = editContent.trim()
+    if (!content) return
+    const endDate = editEndDate && editEndDate >= editDate ? editEndDate : editDate
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === editingEventId ? { ...e, date: editDate, endDate, content, color: editColor } : e
+      )
+    )
+    setEditingEventId(null)
+  }
+
+  const cancelEditEvent = () => {
+    setEditingEventId(null)
   }
 
   const goPrevMonth = () => {
@@ -97,26 +139,6 @@ export default function CalendarPage() {
     } else {
       setMonth((m) => m + 1)
     }
-  }
-
-  const handleDownload = () => {
-    if (!exportRef.current) return
-    setExporting(true)
-    const opt = {
-      pixelRatio: 2,
-      width: EXPORT_WIDTH,
-      height: EXPORT_HEIGHT,
-      style: { width: EXPORT_WIDTH, height: EXPORT_HEIGHT },
-    }
-    toPng(exportRef.current, opt)
-      .then((dataUrl) => {
-        const a = document.createElement('a')
-        a.href = dataUrl
-        a.download = `calendar-${year}-${String(month).padStart(2, '0')}.png`
-        a.click()
-      })
-      .catch((err) => console.error('Export failed:', err))
-      .finally(() => setExporting(false))
   }
 
   return (
@@ -172,22 +194,21 @@ export default function CalendarPage() {
           <div className="event-form-block">
             <label className="event-field">
               <span className="event-field-label">시작일</span>
-              <input
-                type="date"
+              <DatePickerField
                 value={eventDate}
-                onChange={(e) => setEventDate(e.target.value)}
+                onChange={setEventDate}
+                placeholder="날짜 선택"
                 className="event-input"
               />
             </label>
             <label className="event-field">
               <span className="event-field-label">종료일</span>
-              <input
-                type="date"
+              <DatePickerField
                 value={eventEndDate}
-                onChange={(e) => setEventEndDate(e.target.value)}
+                onChange={setEventEndDate}
                 min={eventDate}
-                className="event-input"
                 placeholder="같은 날이면 비움"
+                className="event-input"
               />
             </label>
           </div>
@@ -210,13 +231,14 @@ export default function CalendarPage() {
                 className="color-trigger"
                 style={{ backgroundColor: eventColor }}
                 onClick={() => setColorDropdownOpen((v) => !v)}
+                onPointerDown={(e) => e.stopPropagation()}
                 aria-expanded={colorDropdownOpen}
                 aria-haspopup="listbox"
                 aria-label="색상 선택"
                 title={eventColor}
               />
               {colorDropdownOpen && (
-                <div className="color-dropdown" role="listbox" aria-label="색상 목록">
+                <div className="color-dropdown" role="listbox" aria-label="색상 목록" onPointerDown={(e) => e.stopPropagation()}>
                   {PRESET_COLORS.map((c) => (
                     <button
                       key={c}
@@ -225,7 +247,9 @@ export default function CalendarPage() {
                       aria-selected={eventColor === c}
                       className={`color-dropdown-swatch ${eventColor === c ? 'active' : ''}`}
                       style={{ backgroundColor: c }}
-                      onClick={() => {
+                      onPointerDown={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
                         setEventColor(c)
                         setColorDropdownOpen(false)
                       }}
@@ -236,9 +260,7 @@ export default function CalendarPage() {
                     <input
                       type="color"
                       value={eventColor}
-                      onChange={(e) => {
-                        setEventColor(e.target.value)
-                      }}
+                      onChange={(e) => setEventColor(e.target.value)}
                       className="color-input-native"
                       title="직접 선택"
                     />
@@ -249,14 +271,6 @@ export default function CalendarPage() {
             </div>
           </div>
           <div className="event-form-actions">
-            <button
-              type="button"
-              className="download-btn event-download-btn"
-              onClick={handleDownload}
-              disabled={exporting}
-            >
-              {exporting ? '생성 중…' : '다운로드'}
-            </button>
             <button type="button" className="add-event-btn" onClick={addEvent}>
               일정 추가
             </button>
@@ -272,8 +286,83 @@ export default function CalendarPage() {
                   <span className="event-item-date">
                     {ev.endDate && ev.endDate !== ev.date ? `${ev.date} ~ ${ev.endDate}` : ev.date}
                   </span>
-                  <span className="event-item-content" style={{ borderLeftColor: ev.color }}>{ev.content}</span>
-                  <button type="button" className="event-item-remove" onClick={() => removeEvent(ev.id)} aria-label="삭제">×</button>
+                  {editingEventId === ev.id ? (
+                    <div className="event-item-edit">
+                      <div className="event-item-edit-dates">
+                        <label className="event-item-edit-date-field">
+                          <span className="event-item-edit-date-label">시작일</span>
+                          <DatePickerField
+                            value={editDate}
+                            onChange={setEditDate}
+                            placeholder="날짜 선택"
+                            className="event-input event-item-edit-input"
+                          />
+                        </label>
+                        <label className="event-item-edit-date-field">
+                          <span className="event-item-edit-date-label">종료일</span>
+                          <DatePickerField
+                            value={editEndDate}
+                            onChange={setEditEndDate}
+                            min={editDate}
+                            placeholder="같은 날이면 비움"
+                            className="event-input event-item-edit-input"
+                          />
+                        </label>
+                      </div>
+                      <input
+                        type="text"
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        className="event-input event-item-edit-input"
+                        placeholder="내용"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveEditEvent()
+                          if (e.key === 'Escape') cancelEditEvent()
+                        }}
+                      />
+                      <div className="event-item-edit-colors">
+                        {PRESET_COLORS.map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            className={`event-item-edit-swatch ${editColor === c ? 'active' : ''}`}
+                            style={{ backgroundColor: c }}
+                            onClick={() => setEditColor(c)}
+                            title={c}
+                          />
+                        ))}
+                        <input
+                          type="color"
+                          value={editColor}
+                          onChange={(e) => setEditColor(e.target.value)}
+                          className="event-item-edit-color-native"
+                          title="직접 선택"
+                        />
+                      </div>
+                      <div className="event-item-edit-actions">
+                        <button type="button" className="event-item-edit-cancel" onClick={cancelEditEvent}>
+                          취소
+                        </button>
+                        <button type="button" className="event-item-edit-save" onClick={saveEditEvent}>
+                          저장
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="event-item-content" style={{ borderLeftColor: ev.color }}>{ev.content}</span>
+                      <button
+                        type="button"
+                        className="event-item-edit-btn"
+                        onClick={() => startEditEvent(ev)}
+                        aria-label="수정"
+                      >
+                        <Pencil size={16} strokeWidth={2} />
+                      </button>
+                      <button type="button" className="event-item-remove" onClick={() => removeEvent(ev.id)} aria-label="삭제">×</button>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>

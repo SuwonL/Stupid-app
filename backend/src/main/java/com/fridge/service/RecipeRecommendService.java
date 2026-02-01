@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static java.util.stream.Collectors.groupingBy;
+
 /** 검색 모드: strictOnly=true면 선택 재료만, false면 선택 재료 포함 다양하게 검색. */
 @Service
 @RequiredArgsConstructor
@@ -69,11 +71,18 @@ public class RecipeRecommendService {
             List<Recipe> recipes = strict
                     ? recipeRepository.findRecipesByAvailableIngredients(new ArrayList<>(allIds))
                     : recipeRepository.findRecipesUsingAnyIngredient(new ArrayList<>(allIds));
-            recipeRecommendations = recipes.stream()
-                    .map(r -> toRecipeDto(r))
-                    .collect(Collectors.toList());
-            Collections.shuffle(recipeRecommendations);
-            recipeRecommendations = recipeRecommendations.stream().limit(MAX_RECIPE_RECOMMENDATIONS).collect(Collectors.toList());
+            if (!recipes.isEmpty()) {
+                List<Long> recipeIds = recipes.stream().map(Recipe::getId).toList();
+                Map<Long, List<RecipeIngredient>> ingredientsByRecipe = recipeIngredientRepository
+                        .findAllByRecipeIdIn(recipeIds)
+                        .stream()
+                        .collect(groupingBy(ri -> ri.getRecipe().getId()));
+                recipeRecommendations = recipes.stream()
+                        .map(r -> toRecipeDto(r, ingredientsByRecipe.getOrDefault(r.getId(), List.of())))
+                        .collect(Collectors.toList());
+                Collections.shuffle(recipeRecommendations);
+                recipeRecommendations = recipeRecommendations.stream().limit(MAX_RECIPE_RECOMMENDATIONS).collect(Collectors.toList());
+            }
         }
 
         return RecommendResponse.builder()
@@ -83,8 +92,8 @@ public class RecipeRecommendService {
                 .build();
     }
 
-    private RecipeDto toRecipeDto(Recipe r) {
-        List<String> ingredientNames = recipeIngredientRepository.findAllByRecipeId(r.getId()).stream()
+    private RecipeDto toRecipeDto(Recipe r, List<RecipeIngredient> recipeIngredients) {
+        List<String> ingredientNames = recipeIngredients.stream()
                 .map(RecipeIngredient::getIngredient)
                 .map(Ingredient::getName)
                 .collect(Collectors.toList());

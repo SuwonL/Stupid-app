@@ -31,7 +31,7 @@ public class SpoonacularService {
     /** 무료 50포인트/일 기준, findByIngredients 1+0.01*10 ≈ 1.1 포인트/회 → 일 45회까지 */
     private static final int FREE_DAILY_REQUESTS = 45;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private volatile LocalDate lastRequestDate = null;
     private final AtomicInteger dailyRequestCount = new AtomicInteger(0);
 

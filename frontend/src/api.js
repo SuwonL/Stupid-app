@@ -24,6 +24,9 @@ async function parseJsonUtf8(res, url) {
  * 재료 목록. signal 전달 시 해당 시그널로 요청 취소 가능.
  */
 export async function getIngredients(abortSignal = null) {
+  if (abortSignal?.aborted) {
+    throw new Error(`서버 응답 없음 (${FETCH_TIMEOUT_MS / 1000}초). 요청이 취소되었습니다.`)
+  }
   const url = `${API_BASE}/ingredients`
   let res
   try {
@@ -73,8 +76,26 @@ export async function recommendRecipes({ ingredientIds, ingredientNames, strictO
 
 export async function getRecipeDetail(id) {
   const url = `${API_BASE}/recipes/${id}/detail`
-  const res = await fetch(url, { headers: { Accept: 'application/json;charset=UTF-8' } })
+  let res
+  try {
+    res = await fetchWithTimeout(url, { headers: { Accept: 'application/json;charset=UTF-8' } }, FETCH_TIMEOUT_MS)
+  } catch (e) {
+    const msg = e.name === 'AbortError'
+      ? `서버 응답 없음 (${FETCH_TIMEOUT_MS / 1000}초). URL: ${url}`
+      : `연결 실패. URL: ${url} — ${e.message}`
+    throw new Error(msg)
+  }
   if (!res.ok) throw new Error(`상세 실패 (${res.status}). URL: ${url}`)
+  return parseJsonUtf8(res, url)
+}
+
+/**
+ * YouTube API 일일 사용량 추정 (서버에서 집계). 잔여 = limit - usedToday
+ */
+export async function getYoutubeQuota() {
+  const url = `${API_BASE}/youtube-quota`
+  const res = await fetch(url, { headers: { Accept: 'application/json;charset=UTF-8' } })
+  if (!res.ok) return null
   return parseJsonUtf8(res, url)
 }
 
@@ -83,7 +104,15 @@ export async function getYoutubeRecipeSteps(videoId, title) {
   if (title) params.set('title', title)
   const qs = params.toString()
   const url = `${API_BASE}/youtube/${encodeURIComponent(videoId)}/recipe-steps${qs ? `?${qs}` : ''}`
-  const res = await fetch(url, { headers: { Accept: 'application/json;charset=UTF-8' } })
+  let res
+  try {
+    res = await fetchWithTimeout(url, { headers: { Accept: 'application/json;charset=UTF-8' } }, FETCH_TIMEOUT_MS)
+  } catch (e) {
+    const msg = e.name === 'AbortError'
+      ? `서버 응답 없음 (${FETCH_TIMEOUT_MS / 1000}초). URL: ${url}`
+      : `연결 실패. URL: ${url} — ${e.message}`
+    throw new Error(msg)
+  }
   if (!res.ok) throw new Error(`자막 실패 (${res.status}). URL: ${url}`)
   return parseJsonUtf8(res, url)
 }

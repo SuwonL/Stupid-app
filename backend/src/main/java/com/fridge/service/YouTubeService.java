@@ -29,7 +29,8 @@ public class YouTubeService {
     private static final Logger log = LoggerFactory.getLogger(YouTubeService.class);
     private static volatile boolean loggedNoKey;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+    private final YoutubeQuotaTracker youtubeQuotaTracker;
 
     @Value("${app.youtube.api-key:}")
     private String apiKey;
@@ -95,6 +96,7 @@ public class YouTubeService {
         if (q.isBlank()) return new YouTubeSearchResult(List.of(), null);
         q = strictOnly ? (q + " 만으로 만드는 레시피") : (q + " 레시피");
         String publishedAfter = ZonedDateTime.now().minusYears(1).format(DateTimeFormatter.ISO_INSTANT);
+        youtubeQuotaTracker.addSearchUsage();
         try {
             Map<String, ?> response = restTemplate.getForObject(SEARCH_URL_MULTI, Map.class, q, publishedAfter, apiKey);
             if (response == null) {

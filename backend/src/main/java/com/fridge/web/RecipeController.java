@@ -5,11 +5,13 @@ import com.fridge.dto.RecipeDetailDto;
 import com.fridge.dto.RecipeDto;
 import com.fridge.dto.RecommendRequest;
 import com.fridge.dto.RecommendResponse;
+import com.fridge.dto.YoutubeQuotaDto;
+import com.fridge.dto.YoutubeRecipeStepsDto;
 import com.fridge.entity.Ingredient;
 import com.fridge.repository.IngredientRepository;
-import com.fridge.dto.YoutubeRecipeStepsDto;
 import com.fridge.service.RecipeDetailService;
 import com.fridge.service.RecipeRecommendService;
+import com.fridge.service.YoutubeQuotaTracker;
 import com.fridge.service.YoutubeTranscriptService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +29,7 @@ public class RecipeController {
     private final RecipeRecommendService recipeRecommendService;
     private final RecipeDetailService recipeDetailService;
     private final YoutubeTranscriptService youtubeTranscriptService;
+    private final YoutubeQuotaTracker youtubeQuotaTracker;
 
     @GetMapping(value = "/ingredients", produces = "application/json;charset=UTF-8")
     public ResponseEntity<List<IngredientDto>> listIngredients() {
@@ -42,7 +45,10 @@ public class RecipeController {
     }
 
     @PostMapping(value = "/recipes/recommend", produces = "application/json;charset=UTF-8")
-    public ResponseEntity<RecommendResponse> recommend(@RequestBody RecommendRequest request) {
+    public ResponseEntity<RecommendResponse> recommend(@RequestBody(required = false) RecommendRequest request) {
+        if (request == null) {
+            request = new RecommendRequest();
+        }
         RecommendResponse result = recipeRecommendService.recommendByIngredients(
                 request.getIngredientIds(),
                 request.getIngredientNames(),
@@ -56,6 +62,13 @@ public class RecipeController {
         RecipeDetailDto dto = recipeDetailService.getDetail(id);
         if (dto == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping(value = "/youtube-quota", produces = "application/json;charset=UTF-8")
+    public ResponseEntity<YoutubeQuotaDto> youtubeQuota() {
+        int used = youtubeQuotaTracker.getUsedToday();
+        int limit = youtubeQuotaTracker.getLimit();
+        return ResponseEntity.ok(YoutubeQuotaDto.builder().usedToday(used).limit(limit).build());
     }
 
     @GetMapping(value = "/youtube/{videoId}/recipe-steps", produces = "application/json;charset=UTF-8")
