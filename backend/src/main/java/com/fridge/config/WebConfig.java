@@ -27,8 +27,13 @@ public class WebConfig implements WebMvcConfigurer {
                         .map(String::trim)
                         .filter(s -> !s.isEmpty())
         ).distinct().collect(Collectors.toList());
+        // 패턴 사용: Vercel 배포 URL이 *.vercel.app 이면 모두 허용 (프리뷰/프로덕션 구분 없이)
+        String[] patterns = Stream.concat(
+                Stream.of("https://*.vercel.app", "http://localhost:*"),
+                origins.stream()
+        ).distinct().toArray(String[]::new);
         registry.addMapping("/api/**")
-                .allowedOrigins(origins.toArray(new String[0]))
+                .allowedOriginPatterns(patterns)
                 .allowedMethods("GET", "POST", "OPTIONS")
                 .allowedHeaders("*");
     }
