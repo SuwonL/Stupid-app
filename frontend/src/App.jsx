@@ -3,6 +3,7 @@ import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
 import './App.css'
 import FridgePage from './pages/FridgePage'
 import CalendarPage from './pages/CalendarPage'
+import ProjectInfoModal from './components/ProjectInfoModal'
 
 const THEME_KEY = 'fridge-menu-theme'
 
@@ -39,6 +40,7 @@ export default function App() {
 
   const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'))
 
+  const [showProjectInfo, setShowProjectInfo] = useState(false)
   const buildTime = typeof __APP_BUILD_TIME__ !== 'undefined' ? formatBuildTime(__APP_BUILD_TIME__) : ''
   const version = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1'
 
@@ -56,7 +58,14 @@ export default function App() {
         <div className="app-nav-right">
           <span className="app-nav-meta" title={`빌드: ${buildTime}`}>
             {buildTime && <span className="app-nav-build">{buildTime}</span>}
-            <span className="app-nav-version">v{version}</span>
+            <button
+              type="button"
+              className="app-nav-version-btn"
+              onClick={() => setShowProjectInfo(true)}
+              title="프로젝트 인덱스·구성도"
+            >
+              v{version}
+            </button>
           </span>
           <button
             type="button"
@@ -80,6 +89,14 @@ export default function App() {
           <Route path="/calendar" element={<CalendarPage />} />
         </Routes>
       </main>
+
+      {showProjectInfo && (
+        <ProjectInfoModal
+          onClose={() => setShowProjectInfo(false)}
+          version={version}
+          buildTime={buildTime}
+        />
+      )}
     </div>
   )
 }

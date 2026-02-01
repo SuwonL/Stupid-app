@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Beef, Carrot, UtensilsCrossed, LayoutList, LayoutGrid } from 'lucide-react'
-import { getIngredients, recommendRecipes, getYoutubeRecipeSteps, getRecipeDetail, getYoutubeQuota } from '../api'
+import { getIngredients, recommendRecipes, getYoutubeRecipeSteps, getRecipeDetail } from '../api'
 
 const CATEGORY_ORDER = ['고기·계란·통조림', '야채·채소', '양념·밥·면']
 
@@ -42,7 +42,6 @@ export default function FridgePage() {
   const [recipeDetail, setRecipeDetail] = useState(null)
   const [searchMode, setSearchMode] = useState('diverse')
   const [resultViewMode, setResultViewMode] = useState('grid3')
-  const [youtubeQuota, setYoutubeQuota] = useState(null)
   const ingredientsAbortRef = useRef(null)
 
   const loadIngredients = () => {
@@ -63,10 +62,6 @@ export default function FridgePage() {
   useEffect(() => {
     loadIngredients()
     return () => ingredientsAbortRef.current?.abort()
-  }, [])
-
-  useEffect(() => {
-    getYoutubeQuota().then(setYoutubeQuota).catch(() => setYoutubeQuota(null))
   }, [])
 
   useEffect(() => {
@@ -118,7 +113,6 @@ export default function FridgePage() {
           requestedTagNames,
           strictOnly: searchMode === 'only',
         })
-        getYoutubeQuota().then(setYoutubeQuota).catch(() => {})
       })
       .catch((e) => setError(e.message || '메뉴 추천 요청에 실패했습니다.'))
       .finally(() => setLoading(false))
@@ -338,17 +332,6 @@ export default function FridgePage() {
           </div>
         )}
       </section>
-
-      <footer className="youtube-quota-info">
-        <p className="youtube-quota-text">
-          YouTube API:{' '}
-          {youtubeQuota != null
-            ? `잔여 약 ${Math.max(0, youtubeQuota.limit - youtubeQuota.usedToday).toLocaleString()} / ${youtubeQuota.limit.toLocaleString()} 단위`
-            : '1일 1만 단위'}
-          {' · 17:00 KST 초기화 · '}
-          <a href="https://console.cloud.google.com/apis/api/youtube.googleapis.com/quotas" target="_blank" rel="noopener noreferrer" className="youtube-quota-link">콘솔</a>
-        </p>
-      </footer>
 
       {youtubeDialog && (
         <div className="modal-backdrop" onClick={closeYoutubeDialog} role="presentation">

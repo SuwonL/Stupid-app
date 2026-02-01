@@ -36,6 +36,8 @@ export default function CalendarPage() {
   const [eventContent, setEventContent] = useState('')
   const [eventColor, setEventColor] = useState(PRESET_COLORS[0])
   const [calendarImageDataUrl, setCalendarImageDataUrl] = useState(null)
+  /** 이미지 생성 시점에만 세팅. null이면 export용 DOM을 아예 안 그려서 입력/클릭 시 리렌더 비용 제거 */
+  const [exportSnapshot, setExportSnapshot] = useState(null)
   const exportRef = useRef(null)
   const nextIdRef = useRef(1)
   const colorDropdownRef = useRef(null)
@@ -63,15 +65,34 @@ export default function CalendarPage() {
     }
   }, [colorDropdownOpen])
 
-  /* 달력을 이미지로 렌더링. 모바일: requestIdleCallback + 낮은 pixelRatio로 메인 스레드 블로킹 최소화 */
+  /* 달력 이미지 생성: 디바운스 후 export용 DOM을 잠깐만 마운트해 toPng 실행. 평소에는 export DOM이 없어서 입력/클릭 시 리렌더로 멈춤 방지 */
   useEffect(() => {
     let cancelled = false
     let idleId = null
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
-    const delay = isMobile ? 600 : 400
+    const debounceMs = isMobile ? 2000 : 1500
+    const pixelRatio = isMobile ? 1 : 2
+    const t = setTimeout(() => {
+      if (cancelled) return
+      setExportSnapshot({ year, month, events: [...events], styleId })
+    }, debounceMs)
+    return () => {
+      cancelled = true
+      clearTimeout(t)
+    }
+  }, [year, month, events, styleId])
+
+  useEffect(() => {
+    if (!exportSnapshot) return
+    let cancelled = false
+    let idleId = null
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
     const pixelRatio = isMobile ? 1 : 2
     const runExport = () => {
-      if (!exportRef.current || cancelled) return
+      if (!exportRef.current || cancelled) {
+        if (!cancelled) setExportSnapshot(null)
+        return
+      }
       const opt = {
         pixelRatio,
         width: EXPORT_WIDTH,
@@ -79,23 +100,33 @@ export default function CalendarPage() {
         style: { width: EXPORT_WIDTH, height: EXPORT_HEIGHT },
       }
       toPng(exportRef.current, opt)
-        .then((url) => { if (!cancelled) setCalendarImageDataUrl(url) })
-        .catch(() => { if (!cancelled) setCalendarImageDataUrl(null) })
+        .then((url) => {
+          if (!cancelled) {
+            setCalendarImageDataUrl(url)
+            setExportSnapshot(null)
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setCalendarImageDataUrl(null)
+            setExportSnapshot(null)
+          }
+        })
     }
-    const t = setTimeout(() => {
+    const rafId = requestAnimationFrame(() => {
       if (cancelled) return
       if (typeof requestIdleCallback !== 'undefined') {
-        idleId = requestIdleCallback(runExport, { timeout: 1200 })
+        idleId = requestIdleCallback(runExport, { timeout: 1500 })
       } else {
-        runExport()
+        setTimeout(runExport, 0)
       }
-    }, delay)
+    })
     return () => {
       cancelled = true
-      clearTimeout(t)
+      cancelAnimationFrame(rafId)
       if (idleId != null && typeof cancelIdleCallback !== 'undefined') cancelIdleCallback(idleId)
     }
-  }, [year, month, events, styleId])
+  }, [exportSnapshot])
 
   const addEvent = () => {
     const content = eventContent.trim()
@@ -384,17 +415,26 @@ export default function CalendarPage() {
         )}
       </section>
 
-      <div
-        ref={exportRef}
-        className="calendar-export-target"
-        style={{ width: EXPORT_WIDTH, height: EXPORT_HEIGHT }}
-        aria-hidden
-      >
-        <div className={`calendar-style-${styleId}`}>
-          <div className="cal-export-title">{month}월</div>
-          <CalendarGrid year={year} month={month} events={events} styleId={styleId} className="cal-export-grid" monthLabel={`${month}월`} />
+      {exportSnapshot && (
+        <div
+          ref={exportRef}
+          className="calendar-export-target"
+          style={{ width: EXPORT_WIDTH, height: EXPORT_HEIGHT }}
+          aria-hidden
+        >
+          <div className={`calendar-style-${exportSnapshot.styleId}`}>
+            <div className="cal-export-title">{exportSnapshot.month}월</div>
+            <CalendarGrid
+              year={exportSnapshot.year}
+              month={exportSnapshot.month}
+              events={exportSnapshot.events}
+              styleId={exportSnapshot.styleId}
+              className="cal-export-grid"
+              monthLabel={`${exportSnapshot.month}월`}
+            />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
