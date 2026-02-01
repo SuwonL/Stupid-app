@@ -1,22 +1,18 @@
-import { useState, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
 import { toPng } from 'html-to-image'
 import CalendarGrid from '../components/calendar/CalendarGrid'
 import './CalendarPage.css'
 
 const STYLES = [
+  { id: 'default', label: '기본' },
   { id: 'modern', label: '모던' },
-  { id: 'minimal', label: '미니멀' },
-  { id: 'colorful', label: '컬러풀' },
   { id: 'dark', label: '다크' },
   { id: 'grid', label: '그리드' },
 ]
 
-const RATIOS = [
-  { id: '1_1', label: '1:1', width: 1080, height: 1080 },
-  { id: '4_5', label: '4:5', width: 1080, height: 1350 },
-  { id: '9_16', label: '9:16', width: 1080, height: 1920 },
-]
+/** 다운로드 이미지 비율 9:16 고정 */
+const EXPORT_WIDTH = 1080
+const EXPORT_HEIGHT = 1920
 
 const PRESET_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#eab308', '#a855f7', '#ec4899', '#06b6d4', '#f97316']
 
@@ -31,18 +27,46 @@ export default function CalendarPage() {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
-  const [styleId, setStyleId] = useState('modern')
+  const [styleId, setStyleId] = useState('default')
   const [events, setEvents] = useState([])
   const [eventDate, setEventDate] = useState(getDefaultDate())
   const [eventEndDate, setEventEndDate] = useState('')
   const [eventContent, setEventContent] = useState('')
   const [eventColor, setEventColor] = useState(PRESET_COLORS[0])
-  const [ratioId, setRatioId] = useState('1_1')
   const [exporting, setExporting] = useState(false)
-  const [appliedSnapshot, setAppliedSnapshot] = useState(null)
-  const [reflectMessage, setReflectMessage] = useState('')
+  const [calendarImageDataUrl, setCalendarImageDataUrl] = useState(null)
   const exportRef = useRef(null)
   const nextIdRef = useRef(1)
+  const colorDropdownRef = useRef(null)
+  const [colorDropdownOpen, setColorDropdownOpen] = useState(false)
+
+  useEffect(() => {
+    if (!colorDropdownOpen) return
+    const handleClickOutside = (e) => {
+      if (colorDropdownRef.current && !colorDropdownRef.current.contains(e.target)) {
+        setColorDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [colorDropdownOpen])
+
+  /* 달력을 이미지로 렌더링해 우클릭 저장 가능하게 */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!exportRef.current) return
+      const opt = {
+        pixelRatio: 2,
+        width: EXPORT_WIDTH,
+        height: EXPORT_HEIGHT,
+        style: { width: EXPORT_WIDTH, height: EXPORT_HEIGHT },
+      }
+      toPng(exportRef.current, opt)
+        .then(setCalendarImageDataUrl)
+        .catch(() => setCalendarImageDataUrl(null))
+    }, 200)
+    return () => clearTimeout(t)
+  }, [year, month, events, styleId])
 
   const addEvent = () => {
     const content = eventContent.trim()
@@ -58,20 +82,21 @@ export default function CalendarPage() {
     setEvents((prev) => prev.filter((e) => e.id !== id))
   }
 
-  const ratioConfig = RATIOS.find((r) => r.id === ratioId) || RATIOS[0]
-  const snap = appliedSnapshot || { events, styleId, year, month, ratioId }
-  const snapRatio = RATIOS.find((r) => r.id === snap.ratioId) || RATIOS[0]
-
-  const handleReflect = () => {
-    setAppliedSnapshot({
-      events: events.map((e) => ({ ...e })),
-      styleId,
-      year,
-      month,
-      ratioId,
-    })
-    setReflectMessage('반영되었습니다.')
-    setTimeout(() => setReflectMessage(''), 2000)
+  const goPrevMonth = () => {
+    if (month === 1) {
+      setYear((y) => y - 1)
+      setMonth(12)
+    } else {
+      setMonth((m) => m - 1)
+    }
+  }
+  const goNextMonth = () => {
+    if (month === 12) {
+      setYear((y) => y + 1)
+      setMonth(1)
+    } else {
+      setMonth((m) => m + 1)
+    }
   }
 
   const handleDownload = () => {
@@ -79,15 +104,15 @@ export default function CalendarPage() {
     setExporting(true)
     const opt = {
       pixelRatio: 2,
-      width: snapRatio.width,
-      height: snapRatio.height,
-      style: { width: snapRatio.width, height: snapRatio.height },
+      width: EXPORT_WIDTH,
+      height: EXPORT_HEIGHT,
+      style: { width: EXPORT_WIDTH, height: EXPORT_HEIGHT },
     }
     toPng(exportRef.current, opt)
       .then((dataUrl) => {
         const a = document.createElement('a')
         a.href = dataUrl
-        a.download = `calendar-${snap.year}-${String(snap.month).padStart(2, '0')}.png`
+        a.download = `calendar-${year}-${String(month).padStart(2, '0')}.png`
         a.click()
       })
       .catch((err) => console.error('Export failed:', err))
@@ -99,11 +124,18 @@ export default function CalendarPage() {
       <header className="calendar-header">
         <h1>자동 달력만들기</h1>
         <p className="calendar-sub">스타일을 고르고 일정을 넣어 인스타용 달력 이미지를 만드세요.</p>
-        <Link to="/" className="back-to-home">← 홈</Link>
       </header>
 
       <section className="calendar-control card">
-        <h2 className="section-title">{year}년 {MONTH_NAMES[month - 1]}</h2>
+        <div className="calendar-month-nav">
+          <button type="button" className="month-nav-btn month-nav-prev" onClick={goPrevMonth} aria-label="이전 달">
+            ‹
+          </button>
+          <h2 className="section-title calendar-month-title">{year}년 {MONTH_NAMES[month - 1]}</h2>
+          <button type="button" className="month-nav-btn month-nav-next" onClick={goNextMonth} aria-label="다음 달">
+            ›
+          </button>
+        </div>
         <div className="style-select">
           <span className="style-label">스타일</span>
           <div className="style-btns" role="group" aria-label="달력 스타일">
@@ -122,69 +154,113 @@ export default function CalendarPage() {
       </section>
 
       <section className="calendar-preview card">
-        <CalendarGrid year={year} month={month} events={events} styleId={styleId} />
+        {calendarImageDataUrl ? (
+          <img
+            src={calendarImageDataUrl}
+            alt={`${year}년 ${month}월 달력`}
+            className="calendar-preview-img"
+            title="우클릭 → 이미지 저장으로 다운로드"
+          />
+        ) : (
+          <CalendarGrid year={year} month={month} events={events} styleId={styleId} monthLabel={`${month}월`} />
+        )}
       </section>
 
       <section className="event-section card">
         <h2 className="section-title">일정 추가</h2>
         <div className="event-form">
-          <label className="event-field">
-            <span className="event-field-label">시작일</span>
-            <input
-              type="date"
-              value={eventDate}
-              onChange={(e) => setEventDate(e.target.value)}
-              className="event-input"
-            />
-          </label>
-          <label className="event-field">
-            <span className="event-field-label">종료일 (선택, 기간일 때만)</span>
-            <input
-              type="date"
-              value={eventEndDate}
-              onChange={(e) => setEventEndDate(e.target.value)}
-              min={eventDate}
-              className="event-input"
-              placeholder="같은 날이면 비움"
-            />
-          </label>
-          <label className="event-field">
-            <span className="event-field-label">내용</span>
-            <input
-              type="text"
-              value={eventContent}
-              onChange={(e) => setEventContent(e.target.value)}
-              placeholder="일정 내용"
-              className="event-input"
-              onKeyDown={(e) => e.key === 'Enter' && addEvent()}
-            />
-          </label>
-          <label className="event-field">
-            <span className="event-field-label">색상</span>
-            <div className="color-row">
-              {PRESET_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  className={`color-swatch ${eventColor === c ? 'active' : ''}`}
-                  style={{ backgroundColor: c }}
-                  onClick={() => setEventColor(c)}
-                  title={c}
-                  aria-label={`색상 ${c}`}
-                />
-              ))}
+          <div className="event-form-block">
+            <label className="event-field">
+              <span className="event-field-label">시작일</span>
               <input
-                type="color"
-                value={eventColor}
-                onChange={(e) => setEventColor(e.target.value)}
-                className="color-input"
-                title="색상 선택"
+                type="date"
+                value={eventDate}
+                onChange={(e) => setEventDate(e.target.value)}
+                className="event-input"
               />
+            </label>
+            <label className="event-field">
+              <span className="event-field-label">종료일</span>
+              <input
+                type="date"
+                value={eventEndDate}
+                onChange={(e) => setEventEndDate(e.target.value)}
+                min={eventDate}
+                className="event-input"
+                placeholder="같은 날이면 비움"
+              />
+            </label>
+          </div>
+          <div className="event-form-block event-form-block-content">
+            <label className="event-field event-field-content">
+              <span className="event-field-label">내용</span>
+              <input
+                type="text"
+                value={eventContent}
+                onChange={(e) => setEventContent(e.target.value)}
+                placeholder="일정 내용을 입력하세요"
+                className="event-input"
+                onKeyDown={(e) => e.key === 'Enter' && addEvent()}
+              />
+            </label>
+            <div className="event-field event-field-color-dropdown" ref={colorDropdownRef}>
+              <span className="event-field-label">색상</span>
+              <button
+                type="button"
+                className="color-trigger"
+                style={{ backgroundColor: eventColor }}
+                onClick={() => setColorDropdownOpen((v) => !v)}
+                aria-expanded={colorDropdownOpen}
+                aria-haspopup="listbox"
+                aria-label="색상 선택"
+                title={eventColor}
+              />
+              {colorDropdownOpen && (
+                <div className="color-dropdown" role="listbox" aria-label="색상 목록">
+                  {PRESET_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      role="option"
+                      aria-selected={eventColor === c}
+                      className={`color-dropdown-swatch ${eventColor === c ? 'active' : ''}`}
+                      style={{ backgroundColor: c }}
+                      onClick={() => {
+                        setEventColor(c)
+                        setColorDropdownOpen(false)
+                      }}
+                      title={c}
+                    />
+                  ))}
+                  <div className="color-dropdown-custom">
+                    <input
+                      type="color"
+                      value={eventColor}
+                      onChange={(e) => {
+                        setEventColor(e.target.value)
+                      }}
+                      className="color-input-native"
+                      title="직접 선택"
+                    />
+                    <span className="color-dropdown-custom-label">직접 선택</span>
+                  </div>
+                </div>
+              )}
             </div>
-          </label>
-          <button type="button" className="add-event-btn" onClick={addEvent}>
-            일정 추가
-          </button>
+          </div>
+          <div className="event-form-actions">
+            <button
+              type="button"
+              className="download-btn event-download-btn"
+              onClick={handleDownload}
+              disabled={exporting}
+            >
+              {exporting ? '생성 중…' : '다운로드'}
+            </button>
+            <button type="button" className="add-event-btn" onClick={addEvent}>
+              일정 추가
+            </button>
+          </div>
         </div>
 
         {events.length > 0 && (
@@ -205,48 +281,15 @@ export default function CalendarPage() {
         )}
       </section>
 
-      <section className="export-section card">
-        <h2 className="section-title">이미지 비율</h2>
-        <div className="ratio-btns" role="group" aria-label="이미지 비율">
-          {RATIOS.map((r) => (
-            <button
-              key={r.id}
-              type="button"
-              className={`ratio-btn ${ratioId === r.id ? 'active' : ''}`}
-              onClick={() => setRatioId(r.id)}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-        <div className="export-actions">
-          <button type="button" className="reflect-btn" onClick={handleReflect}>
-            반영하기
-          </button>
-          <button
-            type="button"
-            className="download-btn"
-            onClick={handleDownload}
-            disabled={exporting}
-          >
-            {exporting ? '생성 중…' : '다운로드'}
-          </button>
-          {reflectMessage && <span className="reflect-message">{reflectMessage}</span>}
-        </div>
-      </section>
-
       <div
         ref={exportRef}
         className="calendar-export-target"
-        style={{
-          width: snapRatio.width,
-          height: snapRatio.height,
-        }}
+        style={{ width: EXPORT_WIDTH, height: EXPORT_HEIGHT }}
         aria-hidden
       >
-        <div className={`calendar-style-${snap.styleId}`}>
-          <div className="cal-export-title">{snap.year}년 {MONTH_NAMES[snap.month - 1]}</div>
-          <CalendarGrid year={snap.year} month={snap.month} events={snap.events} styleId={snap.styleId} className="cal-export-grid" />
+        <div className={`calendar-style-${styleId}`}>
+          <div className="cal-export-title">{month}월</div>
+          <CalendarGrid year={year} month={month} events={events} styleId={styleId} className="cal-export-grid" monthLabel={`${month}월`} />
         </div>
       </div>
     </div>

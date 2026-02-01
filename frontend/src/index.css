@@ -6,10 +6,16 @@ html {
 }
 body {
   margin: 0;
-  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  font-family: 'Jua', 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--bg, #f8fafc);
   color: var(--text, #0f172a);
   transition: background 0.25s ease, color 0.25s ease;
+}
+input,
+button,
+textarea,
+select {
+  font-family: inherit;
 }

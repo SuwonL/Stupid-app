@@ -1,3 +1,5 @@
+import { getHoliday } from './holidays'
+
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 
 function getDaysInMonth(year, month) {
@@ -6,6 +8,12 @@ function getDaysInMonth(year, month) {
   const days = last.getDate()
   const startWeekday = first.getDay()
   return { days, startWeekday }
+}
+
+/** 일정이 있는 날짜에 숫자 주변 투명 불규칙 동그라미용 border-radius 값 (일정별로 조금씩 다르게) */
+function irregularRadius(index) {
+  const bases = ['52% 48% 55% 45%', '48% 52% 45% 55%', '55% 45% 48% 52%', '45% 55% 52% 48%']
+  return bases[index % bases.length]
 }
 
 /** 이벤트를 날짜별로 펼침. date~endDate(없으면 date만) 기간 내 해당 월에 속한 날짜에 모두 표시 */
@@ -45,9 +53,10 @@ function parseDate(str) {
   return new Date(y, m - 1, d)
 }
 
-export default function CalendarGrid({ year, month, events = [], styleId = 'minimal', className = '' }) {
+export default function CalendarGrid({ year, month, events = [], styleId = 'default', className = '', monthLabel }) {
   const { days, startWeekday } = getDaysInMonth(year, month)
   const byDate = eventsByDate(events, year, month)
+  const title = monthLabel != null ? monthLabel : `${month}월`
   const cells = []
   for (let i = 0; i < startWeekday; i++) {
     cells.push(<div key={`empty-${i}`} className="cal-cell cal-cell-empty" aria-hidden />)
@@ -55,23 +64,39 @@ export default function CalendarGrid({ year, month, events = [], styleId = 'mini
   for (let d = 1; d <= days; d++) {
     const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`
     const dayEvents = byDate[dateKey] || []
+    const weekday = (startWeekday + (d - 1)) % 7
+    const holiday = getHoliday(year, month, d)
+    const isSun = weekday === 0
+    const isSat = weekday === 6
+    const dayClasses = [
+      'cal-cell',
+      'cal-cell-day',
+      isSun && 'cal-sun',
+      isSat && 'cal-sat',
+      holiday && 'cal-holiday',
+    ].filter(Boolean).join(' ')
+    const eventColor = dayEvents.length > 0 ? (dayEvents[0].color || '#3b82f6') : null
     cells.push(
-      <div key={d} className="cal-cell cal-cell-day">
-        <span className="cal-cell-num">{d}</span>
+      <div key={d} className={dayClasses}>
+        {holiday?.lunar && <span className="cal-cell-lunar">{holiday.lunar}</span>}
+        <span className="cal-cell-num-wrap">
+          <span
+            className={`cal-cell-num${eventColor ? ' has-event' : ''}`}
+            style={
+              eventColor
+                ? {
+                    '--event-color': eventColor,
+                    '--event-radius': irregularRadius(dayEvents[0].id ?? 0),
+                  }
+                : undefined
+            }
+          >
+            {d}
+          </span>
+        </span>
+        {holiday && <span className="cal-cell-holiday-name">{holiday.name}</span>}
         {dayEvents.length > 0 && (
-          <div className="cal-cell-events">
-            {dayEvents.slice(0, 3).map((ev, i) => (
-              <span
-                key={ev.id != null ? ev.id : i}
-                className="cal-event-dot"
-                style={{ backgroundColor: ev.color || '#3b82f6' }}
-                title={ev.content}
-              />
-            ))}
-            {dayEvents.length > 3 && (
-              <span className="cal-event-more">+{dayEvents.length - 3}</span>
-            )}
-          </div>
+          <span className="cal-cell-events-aria" title={dayEvents.map((e) => e.content).join(', ')} aria-hidden />
         )}
       </div>
     )
@@ -79,6 +104,7 @@ export default function CalendarGrid({ year, month, events = [], styleId = 'mini
 
   return (
     <div className={`calendar-grid calendar-style-${styleId} ${className}`.trim()} role="grid" aria-label={`${year}년 ${month}월 달력`}>
+      <div className="cal-month-title">{title}</div>
       <div className="cal-head" role="row">
         {WEEKDAYS.map((w) => (
           <div key={w} className="cal-head-cell" role="columnheader">{w}</div>
