@@ -55,10 +55,14 @@ public class RecipeRecommendService {
             }
         }
 
-        List<YoutubeRecommendationDto> youtubeRecommendations = youTubeService.searchByIngredients(namesForApi, strict).stream()
+        var youtubeResult = youTubeService.searchByIngredients(namesForApi, strict);
+        List<YoutubeRecommendationDto> youtubeRecommendations = youtubeResult.getVideos().stream()
                 .map(v -> YoutubeRecommendationDto.builder().videoId(v.getVideoId()).title(v.getTitle()).build())
                 .collect(Collectors.toList());
-        if (youtubeRecommendations.isEmpty()) log.debug("유튜브 추천 없음: names={}, strict={}", namesForApi, strict);
+        String youtubeErrorReason = youtubeResult.getErrorReason();
+        if (youtubeRecommendations.isEmpty() && youtubeErrorReason != null) {
+            log.warn("유튜브 추천 결과 없음. 재료={}, strict={}. 사유: {}", namesForApi, strict, youtubeErrorReason);
+        }
 
         List<RecipeDto> recipeRecommendations = List.of();
         if (!allIds.isEmpty()) {
@@ -74,6 +78,7 @@ public class RecipeRecommendService {
 
         return RecommendResponse.builder()
                 .youtubeRecommendations(youtubeRecommendations)
+                .youtubeErrorReason(youtubeErrorReason)
                 .recipeRecommendations(recipeRecommendations)
                 .build();
     }

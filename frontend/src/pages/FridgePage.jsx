@@ -123,6 +123,7 @@ export default function FridgePage() {
     })
       .then((res) => setRecommendResult({
         youtubeRecommendations: res.youtubeRecommendations || [],
+        youtubeErrorReason: res.youtubeErrorReason || null,
         recipeRecommendations: res.recipeRecommendations || [],
         requestedTagNames,
         strictOnly: searchMode === 'only',
@@ -285,9 +286,14 @@ export default function FridgePage() {
             </div>
           )}
         </div>
-        {hasSearched && !loading && !error && recommendResult && recommendResult.youtubeRecommendations?.length === 0 && (!recommendResult.recipeRecommendations?.length) && (
-          <p className="empty">추천 결과가 없습니다. 재료 선택 후 다시 시도해 보세요.</p>
+        {hasSearched && loading && (
+          <p className="empty result-loading"><span className="spinner-inline" /> 추천 중… (최대 15초)</p>
         )}
+        {hasSearched && !loading && !error && recommendResult && recommendResult.youtubeRecommendations?.length === 0 && (recommendResult.youtubeErrorReason ? (
+          <p className="youtube-error-reason">{recommendResult.youtubeErrorReason}</p>
+        ) : !recommendResult.recipeRecommendations?.length && (
+          <p className="empty">추천 결과가 없습니다. 재료 선택 후 다시 시도해 보세요.</p>
+        ))}
         {!hasSearched && !loading && !error && (
           <p className="empty">재료를 선택한 뒤 메뉴 추천을 눌러 주세요.</p>
         )}
