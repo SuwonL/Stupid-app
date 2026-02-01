@@ -95,6 +95,16 @@
   font-size: 0.8125rem;
   color: var(--text-secondary);
 }
+.back-to-home {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--primary);
+  text-decoration: none;
+}
+.back-to-home:hover {
+  text-decoration: underline;
+}
 
 .card {
   background: var(--card-bg);
@@ -380,8 +390,43 @@
 .result-section {
   margin-top: 1rem;
 }
-.result-section .section-title {
+.result-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   margin-bottom: 0.5rem;
+}
+.result-section-header .section-title {
+  margin: 0;
+}
+.result-view-toggle {
+  display: flex;
+  gap: 0.25rem;
+}
+.result-view-btn {
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.result-view-btn:hover {
+  background: var(--input-bg);
+  color: var(--text);
+}
+.result-view-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.result-section .section-title {
+  margin-bottom: 0;
 }
 .empty {
   color: var(--text-secondary);
@@ -417,6 +462,61 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 0.75rem;
+}
+.recipe-grid--list {
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+.recipe-grid--list .recipe-card.youtube-card {
+  display: flex;
+  flex-direction: row;
+  text-align: left;
+}
+.recipe-grid--list .recipe-card.youtube-card .card-image-placeholder {
+  width: 100px;
+  min-width: 100px;
+  aspect-ratio: 1;
+}
+.recipe-grid--list .recipe-card.youtube-card .card-body {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+}
+.recipe-grid--list .recipe-card.youtube-card .card-title {
+  font-size: 0.875rem;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+.recipe-grid--list .recipe-card.db-recipe-card .card-body {
+  padding: 0.5rem 0.75rem;
+}
+.recipe-grid--list .recipe-card.db-recipe-card .card-title {
+  font-size: 0.875rem;
+}
+.recipe-grid--grid3 {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+.recipe-grid--grid3 .recipe-card .card-image-placeholder {
+  aspect-ratio: 1;
+}
+.recipe-grid--grid3 .recipe-card .card-body {
+  padding: 0.4rem 0.5rem;
+}
+.recipe-grid--grid3 .recipe-card .card-title {
+  font-size: 0.75rem;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.recipe-grid--grid3 .recipe-card .card-tags,
+.recipe-grid--grid3 .recipe-card .card-hint {
+  font-size: 0.625rem;
+}
+.recipe-grid--grid3 .recipe-card.db-recipe-card .card-title {
+  font-size: 0.75rem;
+}
+.recipe-grid--grid3 .recipe-card.db-recipe-card .card-desc {
+  display: none;
 }
 
 .recipe-card.card {
