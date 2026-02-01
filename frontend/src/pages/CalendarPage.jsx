@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import { toPng } from 'html-to-image'
 import { Pencil } from 'lucide-react'
 import CalendarGrid from '../components/calendar/CalendarGrid'
 import DatePickerField from '../components/calendar/DatePickerField'
@@ -11,10 +10,6 @@ const STYLES = [
   { id: 'dark', label: '다크' },
   { id: 'grid', label: '그리드' },
 ]
-
-/** 다운로드 이미지 비율 9:16 고정 */
-const EXPORT_WIDTH = 1080
-const EXPORT_HEIGHT = 1920
 
 const PRESET_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#eab308', '#a855f7', '#ec4899', '#06b6d4', '#f97316']
 
@@ -35,10 +30,6 @@ export default function CalendarPage() {
   const [eventEndDate, setEventEndDate] = useState('')
   const [eventContent, setEventContent] = useState('')
   const [eventColor, setEventColor] = useState(PRESET_COLORS[0])
-  const [calendarImageDataUrl, setCalendarImageDataUrl] = useState(null)
-  /** 이미지 생성 시점에만 세팅. null이면 export용 DOM을 아예 안 그려서 입력/클릭 시 리렌더 비용 제거 */
-  const [exportSnapshot, setExportSnapshot] = useState(null)
-  const exportRef = useRef(null)
   const nextIdRef = useRef(1)
   const colorDropdownRef = useRef(null)
   const [colorDropdownOpen, setColorDropdownOpen] = useState(false)
@@ -64,69 +55,6 @@ export default function CalendarPage() {
       document.removeEventListener('pointerdown', handleOutside)
     }
   }, [colorDropdownOpen])
-
-  /* 달력 이미지 생성: 디바운스 후 export용 DOM을 잠깐만 마운트해 toPng 실행. 평소에는 export DOM이 없어서 입력/클릭 시 리렌더로 멈춤 방지 */
-  useEffect(() => {
-    let cancelled = false
-    let idleId = null
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
-    const debounceMs = isMobile ? 2000 : 1500
-    const pixelRatio = isMobile ? 1 : 2
-    const t = setTimeout(() => {
-      if (cancelled) return
-      setExportSnapshot({ year, month, events: [...events], styleId })
-    }, debounceMs)
-    return () => {
-      cancelled = true
-      clearTimeout(t)
-    }
-  }, [year, month, events, styleId])
-
-  useEffect(() => {
-    if (!exportSnapshot) return
-    let cancelled = false
-    let idleId = null
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
-    const pixelRatio = isMobile ? 1 : 2
-    const runExport = () => {
-      if (!exportRef.current || cancelled) {
-        if (!cancelled) setExportSnapshot(null)
-        return
-      }
-      const opt = {
-        pixelRatio,
-        width: EXPORT_WIDTH,
-        height: EXPORT_HEIGHT,
-        style: { width: EXPORT_WIDTH, height: EXPORT_HEIGHT },
-      }
-      toPng(exportRef.current, opt)
-        .then((url) => {
-          if (!cancelled) {
-            setCalendarImageDataUrl(url)
-            setExportSnapshot(null)
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setCalendarImageDataUrl(null)
-            setExportSnapshot(null)
-          }
-        })
-    }
-    const rafId = requestAnimationFrame(() => {
-      if (cancelled) return
-      if (typeof requestIdleCallback !== 'undefined') {
-        idleId = requestIdleCallback(runExport, { timeout: 1500 })
-      } else {
-        setTimeout(runExport, 0)
-      }
-    })
-    return () => {
-      cancelled = true
-      cancelAnimationFrame(rafId)
-      if (idleId != null && typeof cancelIdleCallback !== 'undefined') cancelIdleCallback(idleId)
-    }
-  }, [exportSnapshot])
 
   const addEvent = () => {
     const content = eventContent.trim()
@@ -187,7 +115,7 @@ export default function CalendarPage() {
     <div className="calendar-page">
       <header className="calendar-header">
         <h1>자동 달력만들기</h1>
-        <p className="calendar-sub">스타일을 고르고 일정을 넣어 인스타용 달력 이미지를 만드세요.</p>
+        <p className="calendar-sub">스타일을 고르고 일정을 넣은 뒤 화면을 캡처해서 사용하세요.</p>
       </header>
 
       <section className="calendar-control card">
@@ -218,16 +146,7 @@ export default function CalendarPage() {
       </section>
 
       <section className="calendar-preview card">
-        {calendarImageDataUrl ? (
-          <img
-            src={calendarImageDataUrl}
-            alt={`${year}년 ${month}월 달력`}
-            className="calendar-preview-img"
-            title="우클릭 → 이미지 저장으로 다운로드"
-          />
-        ) : (
-          <CalendarGrid year={year} month={month} events={events} styleId={styleId} monthLabel={`${month}월`} />
-        )}
+        <CalendarGrid year={year} month={month} events={events} styleId={styleId} monthLabel={`${month}월`} />
       </section>
 
       <section className="event-section card">
@@ -414,27 +333,6 @@ export default function CalendarPage() {
           </div>
         )}
       </section>
-
-      {exportSnapshot && (
-        <div
-          ref={exportRef}
-          className="calendar-export-target"
-          style={{ width: EXPORT_WIDTH, height: EXPORT_HEIGHT }}
-          aria-hidden
-        >
-          <div className={`calendar-style-${exportSnapshot.styleId}`}>
-            <div className="cal-export-title">{exportSnapshot.month}월</div>
-            <CalendarGrid
-              year={exportSnapshot.year}
-              month={exportSnapshot.month}
-              events={exportSnapshot.events}
-              styleId={exportSnapshot.styleId}
-              className="cal-export-grid"
-              monthLabel={`${exportSnapshot.month}월`}
-            />
-          </div>
-        </div>
-      )}
     </div>
   )
 }

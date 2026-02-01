@@ -18,7 +18,7 @@ export default function HomePage() {
         <Link to="/calendar" className="module-card card">
           <Calendar size={32} className="module-card-icon" aria-hidden />
           <h2 className="module-card-title">자동 달력만들기</h2>
-          <p className="module-card-desc">스타일을 고르고 일정을 넣어 인스타용 달력 이미지를 만드세요.</p>
+          <p className="module-card-desc">스타일을 고르고 일정을 넣은 뒤 화면을 캡처해서 사용하세요.</p>
         </Link>
       </nav>
     </div>

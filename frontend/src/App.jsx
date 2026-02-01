@@ -43,6 +43,7 @@ export default function App() {
   const [showProjectInfo, setShowProjectInfo] = useState(false)
   const buildTime = typeof __APP_BUILD_TIME__ !== 'undefined' ? formatBuildTime(__APP_BUILD_TIME__) : ''
   const version = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1'
+  const deployCount = typeof __APP_DEPLOY_COUNT__ !== 'undefined' ? __APP_DEPLOY_COUNT__ : ''
 
   return (
     <div className="app-layout">
@@ -64,7 +65,7 @@ export default function App() {
               onClick={() => setShowProjectInfo(true)}
               title="프로젝트 인덱스·구성도"
             >
-              v{version}
+              v{version}{deployCount ? ` (#${deployCount})` : ''}
             </button>
           </span>
           <button
@@ -94,6 +95,7 @@ export default function App() {
         <ProjectInfoModal
           onClose={() => setShowProjectInfo(false)}
           version={version}
+          deployCount={deployCount}
           buildTime={buildTime}
         />
       )}
