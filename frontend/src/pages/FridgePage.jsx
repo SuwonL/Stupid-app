@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { Beef, Carrot, UtensilsCrossed, LayoutList, LayoutGrid } from 'lucide-react'
 import { getIngredients, recommendRecipes, getYoutubeRecipeSteps, getRecipeDetail, getYoutubeQuota } from '../api'
 
-const THEME_KEY = 'fridge-menu-theme'
 const CATEGORY_ORDER = ['고기·계란·통조림', '야채·채소', '양념·밥·면']
 
 const CATEGORY_ICONS = {
@@ -31,13 +30,6 @@ function groupByCategory(ingredients) {
 }
 
 export default function FridgePage() {
-  const [theme, setTheme] = useState(() => {
-    try {
-      return localStorage.getItem(THEME_KEY) || 'light'
-    } catch {
-      return 'light'
-    }
-  })
   const [ingredients, setIngredients] = useState([])
   const [ingredientsLoading, setIngredientsLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState(new Set())
@@ -52,15 +44,6 @@ export default function FridgePage() {
   const [resultViewMode, setResultViewMode] = useState('grid3')
   const [youtubeQuota, setYoutubeQuota] = useState(null)
   const ingredientsAbortRef = useRef(null)
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-    try {
-      localStorage.setItem(THEME_KEY, theme)
-    } catch {}
-  }, [theme])
-
-  const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'))
 
   const loadIngredients = () => {
     ingredientsAbortRef.current?.abort()
@@ -175,19 +158,6 @@ export default function FridgePage() {
 
   return (
     <div className="app">
-      <button
-        type="button"
-        className="theme-toggle"
-        onClick={toggleTheme}
-        title={theme === 'light' ? '다크 모드' : '라이트 모드'}
-        aria-label={theme === 'light' ? '다크 모드로 전환' : '라이트 모드로 전환'}
-      >
-        {theme === 'light' ? (
-          <span className="theme-icon" aria-hidden>🌙</span>
-        ) : (
-          <span className="theme-icon" aria-hidden>☀️</span>
-        )}
-      </button>
       <header className="header">
         <h1>냉장고 메뉴</h1>
         <p className="sub">남은 재료로 만들 수 있는 메뉴를 추천해 드려요.</p>
