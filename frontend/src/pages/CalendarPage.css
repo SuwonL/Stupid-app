@@ -338,8 +338,7 @@
   gap: 0.75rem;
   padding-top: 0.25rem;
 }
-.event-form-actions .add-event-btn,
-.event-form-actions .event-download-btn {
+.event-form-actions .add-event-btn {
   margin: 0;
 }
 
@@ -536,6 +535,114 @@
 .event-item-remove:hover {
   color: var(--error-text, #dc2626);
 }
+.event-item-edit-btn {
+  padding: 0.35rem;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 6px;
+  transition: color 0.2s, background 0.2s;
+}
+.event-item-edit-btn:hover {
+  color: var(--primary);
+  background: var(--input-bg);
+}
+
+.event-item-edit {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+.event-item-edit-dates {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.event-item-edit-date-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.event-item-edit-date-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.event-item-edit-input {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.875rem;
+}
+.event-item-edit-colors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.event-item-edit-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.event-item-edit-swatch:hover {
+  transform: scale(1.1);
+}
+.event-item-edit-swatch.active {
+  border-color: var(--text);
+  box-shadow: 0 0 0 1px var(--bg);
+}
+.event-item-edit-color-native {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  background: transparent;
+}
+.event-item-edit-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+.event-item-edit-cancel {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.event-item-edit-cancel:hover {
+  background: var(--input-bg);
+}
+.event-item-edit-save {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8125rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+}
+.event-item-edit-save:hover {
+  opacity: 0.9;
+}
 
 .ratio-btns {
   display: flex;
@@ -640,4 +747,311 @@
 }
 .calendar-export-target .cal-cell {
   min-height: 0;
+}
+
+/* 모바일: 한 화면에 맞춤, 겹침/잘림 방지, 터치 영역 확보 */
+@media (max-width: 768px) {
+  .calendar-page {
+    padding: 0.5rem 0.75rem 2rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+  }
+  .calendar-control.card,
+  .calendar-preview.card,
+  .event-section.card {
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.5rem;
+    min-width: 0;
+  }
+  .calendar-header {
+    padding: 0.5rem 0 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  .calendar-header h1 {
+    font-size: 1.2rem;
+  }
+  .calendar-sub {
+    font-size: 0.75rem;
+  }
+  .calendar-month-nav {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+  }
+  .calendar-month-title {
+    min-width: 70px;
+    font-size: 1rem;
+  }
+  .month-nav-btn {
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
+    touch-action: manipulation;
+  }
+  .style-select {
+    margin-top: 0.35rem;
+  }
+  .style-btns {
+    gap: 0.4rem;
+  }
+  .style-btn {
+    min-height: 44px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+    touch-action: manipulation;
+  }
+  .calendar-preview.card {
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .calendar-preview-img {
+    max-width: 100%;
+    max-height: 38vh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+  }
+  .event-section.card {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .event-form {
+    gap: 0.75rem;
+  }
+  .event-form-block:first-child {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+  .event-form-block-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .event-form-block-content .event-field-content {
+    min-width: 0;
+  }
+  .event-form-block-content .event-field-color-dropdown {
+    flex: none;
+  }
+  .color-trigger {
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
+    touch-action: manipulation;
+  }
+  .event-form-actions {
+    justify-content: stretch;
+  }
+  .add-event-btn {
+    min-height: 44px;
+    width: 100%;
+    touch-action: manipulation;
+  }
+  .event-item {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.4rem 0;
+  }
+  .event-item-date {
+    min-width: 0;
+    width: 100%;
+    font-size: 0.75rem;
+  }
+  .event-item-content {
+    width: 100%;
+    padding-left: 0.35rem;
+  }
+  .event-item-edit-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.35rem;
+    touch-action: manipulation;
+  }
+  .event-item-remove {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.35rem;
+    touch-action: manipulation;
+  }
+  .event-item-edit-swatch,
+  .event-item-edit-color-native {
+    min-width: 32px;
+    min-height: 32px;
+    touch-action: manipulation;
+  }
+  .color-dropdown {
+    max-height: 60vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .color-dropdown-swatch {
+    min-width: 36px;
+    min-height: 36px;
+    touch-action: manipulation;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendar-page {
+    padding: 0.4rem 0.5rem 1.5rem;
+  }
+  .calendar-header h1 {
+    font-size: 1.1rem;
+  }
+  .calendar-sub {
+    font-size: 0.7rem;
+  }
+  .calendar-preview-img {
+    max-height: 32vh;
+  }
+  .event-form-block:first-child {
+    grid-template-columns: 1fr;
+  }
+  .event-input {
+    font-size: 16px; /* iOS 줌 방지 */
+  }
+}
+
+/* 커스텀 날짜 선택기: 최신 스타일 */
+.date-picker-field {
+  position: relative;
+  width: 100%;
+}
+.date-picker-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text);
+  font-size: 0.875rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  text-align: left;
+}
+.date-picker-trigger:hover {
+  border-color: var(--primary);
+}
+.date-picker-trigger:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+.date-picker-placeholder {
+  color: var(--text-secondary);
+}
+.date-picker-icon {
+  font-size: 1rem;
+  opacity: 0.7;
+}
+.date-picker-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.35rem;
+  padding: 0.75rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 25;
+  min-width: 260px;
+}
+.date-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  gap: 0.5rem;
+}
+.date-picker-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.date-picker-nav {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.date-picker-nav:hover {
+  background: var(--border);
+}
+.date-picker-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 0.35rem;
+}
+.date-picker-weekday {
+  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.date-picker-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.date-picker-day {
+  aspect-ratio: 1;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.date-picker-day:hover:not(.date-picker-day-disabled):not(.date-picker-day-selected) {
+  background: var(--input-bg);
+}
+.date-picker-day-selected {
+  background: var(--primary);
+  color: #fff;
+}
+.date-picker-day-disabled {
+  color: var(--text-secondary);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.date-picker-day-empty {
+  cursor: default;
+  background: transparent;
 }

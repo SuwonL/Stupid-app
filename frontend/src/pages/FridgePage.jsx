@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
 import { Beef, Carrot, UtensilsCrossed, LayoutList, LayoutGrid } from 'lucide-react'
-import { getIngredients, recommendRecipes, getYoutubeRecipeSteps, getRecipeDetail } from '../api'
+import { getIngredients, recommendRecipes, getYoutubeRecipeSteps, getRecipeDetail, getYoutubeQuota } from '../api'
 
 const THEME_KEY = 'fridge-menu-theme'
 const CATEGORY_ORDER = ['고기·계란·통조림', '야채·채소', '양념·밥·면']
@@ -51,6 +50,7 @@ export default function FridgePage() {
   const [recipeDetail, setRecipeDetail] = useState(null)
   const [searchMode, setSearchMode] = useState('diverse')
   const [resultViewMode, setResultViewMode] = useState('grid3')
+  const [youtubeQuota, setYoutubeQuota] = useState(null)
   const ingredientsAbortRef = useRef(null)
 
   useEffect(() => {
@@ -79,17 +79,23 @@ export default function FridgePage() {
 
   useEffect(() => {
     loadIngredients()
+    return () => ingredientsAbortRef.current?.abort()
+  }, [])
+
+  useEffect(() => {
+    getYoutubeQuota().then(setYoutubeQuota).catch(() => setYoutubeQuota(null))
   }, [])
 
   useEffect(() => {
     if (!ingredientsLoading) return
     const t = setTimeout(() => {
       if (ingredientsAbortRef.current) {
-        setError('재료 목록을 불러올 수 없습니다. (20초 초과) 재시도해 보세요.')
-        setIngredientsLoading(false)
+        ingredientsAbortRef.current.abort()
         ingredientsAbortRef.current = null
       }
-    }, 20000)
+      setError((prev) => (prev ? prev : '재료 목록 요청 시간이 초과되었습니다. 다시 시도해 주세요.'))
+      setIngredientsLoading(false)
+    }, 15000)
     return () => clearTimeout(t)
   }, [ingredientsLoading])
 
@@ -121,13 +127,16 @@ export default function FridgePage() {
       ingredientIds: selectedIdList,
       strictOnly: searchMode === 'only',
     })
-      .then((res) => setRecommendResult({
-        youtubeRecommendations: res.youtubeRecommendations || [],
-        youtubeErrorReason: res.youtubeErrorReason || null,
-        recipeRecommendations: res.recipeRecommendations || [],
-        requestedTagNames,
-        strictOnly: searchMode === 'only',
-      }))
+      .then((res) => {
+        setRecommendResult({
+          youtubeRecommendations: res.youtubeRecommendations || [],
+          youtubeErrorReason: res.youtubeErrorReason || null,
+          recipeRecommendations: res.recipeRecommendations || [],
+          requestedTagNames,
+          strictOnly: searchMode === 'only',
+        })
+        getYoutubeQuota().then(setYoutubeQuota).catch(() => {})
+      })
       .catch((e) => setError(e.message || '메뉴 추천 요청에 실패했습니다.'))
       .finally(() => setLoading(false))
   }
@@ -182,14 +191,13 @@ export default function FridgePage() {
       <header className="header">
         <h1>냉장고 메뉴</h1>
         <p className="sub">남은 재료로 만들 수 있는 메뉴를 추천해 드려요.</p>
-        <Link to="/" className="back-to-home">← 홈</Link>
       </header>
 
       <section className="input-section card">
         <h2 className="section-title">재료 선택 (최대 {MAX_INGREDIENTS}개)</h2>
         {ingredientsLoading && (
           <div className="ingredients-loading-wrap">
-            <p className="ingredients-loading"><span className="spinner-inline" /> 재료 목록 불러오는 중… (최대 20초)</p>
+            <p className="ingredients-loading"><span className="spinner-inline" /> 재료 목록 불러오는 중… (최대 15초)</p>
             <button type="button" className="cancel-load-btn" onClick={() => ingredientsAbortRef.current?.abort()}>
               로딩 중단
             </button>
@@ -360,6 +368,17 @@ export default function FridgePage() {
           </div>
         )}
       </section>
+
+      <footer className="youtube-quota-info">
+        <p className="youtube-quota-text">
+          YouTube API:{' '}
+          {youtubeQuota != null
+            ? `잔여 약 ${Math.max(0, youtubeQuota.limit - youtubeQuota.usedToday).toLocaleString()} / ${youtubeQuota.limit.toLocaleString()} 단위`
+            : '1일 1만 단위'}
+          {' · 17:00 KST 초기화 · '}
+          <a href="https://console.cloud.google.com/apis/api/youtube.googleapis.com/quotas" target="_blank" rel="noopener noreferrer" className="youtube-quota-link">콘솔</a>
+        </p>
+      </footer>
 
       {youtubeDialog && (
         <div className="modal-backdrop" onClick={closeYoutubeDialog} role="presentation">

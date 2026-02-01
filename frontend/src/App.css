@@ -45,6 +45,11 @@
   flex-direction: column;
 }
 .app-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
   display: flex;
   gap: 0;
   max-width: 720px;
@@ -76,6 +81,7 @@
   max-width: 720px;
   margin: 0 auto;
   width: 100%;
+  padding-top: 3.5rem;
 }
 
 .app {
@@ -144,6 +150,30 @@
 }
 .back-to-home:hover {
   text-decoration: underline;
+}
+
+.youtube-quota-info {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+.youtube-quota-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.youtube-quota-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  line-height: 1.6;
+}
+.youtube-quota-list li {
+  margin-bottom: 0.2rem;
 }
 
 .card {
