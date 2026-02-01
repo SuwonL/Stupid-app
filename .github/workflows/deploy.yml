@@ -1,6 +1,7 @@
 # GitHub push 시 자동 배포 (무료)
 # - Vercel: 저장소 연결만 하면 push 시 자동 배포 (별도 워크플로 불필요)
 # - Fly.io: 이 워크플로가 main 브랜치 push 시 백엔드를 Fly.io에 배포
+# - 실패 시: GitHub Settings > Secrets and variables > Actions 에 FLY_API_TOKEN 추가 필요
 
 name: Deploy to Fly.io
 
@@ -16,6 +17,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Check FLY_API_TOKEN
+        run: |
+          if [ -z "${{ secrets.FLY_API_TOKEN }}" ]; then
+            echo "::error::FLY_API_TOKEN이 설정되지 않았습니다. GitHub 저장소 Settings > Secrets and variables > Actions 에서 FLY_API_TOKEN 을 추가하세요. 토큰은 로컬에서 'fly auth token' 또는 'fly tokens create deploy' 로 발급할 수 있습니다."
+            exit 1
+          fi
+          echo "FLY_API_TOKEN is set."
 
       - name: Setup Fly CLI
         uses: superfly/flyctl-actions/setup-flyctl@master
