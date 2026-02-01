@@ -75,10 +75,11 @@ npm run dev
 5. **Output Directory**: `dist` (기본값)
 6. **Deploy** 클릭
 
-### 방법 B: 저장소 루트에서 배포
+### 방법 B: 저장소 루트에서 배포 (권장 — push 시 자동 배포 시)
 
-Root Directory를 비운 채 두면, 루트의 `vercel.json`이 사용됩니다.  
-Install/Build는 `frontend/`에서 실행되고, 출력은 `frontend/dist`로 인식됩니다.
+**Root Directory를 반드시 비워 두세요.** 비어 있어야 루트의 `vercel.json`이 적용되고, `cd frontend`가 동작합니다.  
+Root Directory를 `frontend`로 두면 "cd frontend: No such file or directory" 오류가 납니다.  
+Install/Build는 루트에서 `frontend/`로 들어가 실행되고, 출력은 `frontend/dist`로 인식됩니다.
 
 ### 404 NOT_FOUND가 나올 때
 
@@ -92,6 +93,19 @@ Install/Build는 `frontend/`에서 실행되고, 출력은 `frontend/dist`로 �
 배포된 사이트에서 API 요청이 같은 도메인(Vercel)으로 가고, 해당 경로에 백엔드가 없어 **HTML(index.html)** 이 내려오면서 JSON 대신 HTML을 파싱하려다 에러가 납니다.
 
 **해결**: 백엔드를 배포하고, 프론트엔드가 그 주소를 쓰도록 설정하면 됩니다.
+
+---
+
+## GitHub push 시 자동 배포 (Vercel + Fly.io, 무료)
+
+**push할 때마다** 프론트는 Vercel, 백엔드는 Fly.io에 **자동 배포**되게 하려면 아래 한 번만 설정하면 됩니다.
+
+| 대상 | 설정 |
+|------|------|
+| **Vercel** | [vercel.com](https://vercel.com)에서 이 저장소 연결 → push 시 프론트 자동 배포 |
+| **Fly.io** | GitHub **Settings** → **Secrets and variables** → **Actions** 에 `FLY_API_TOKEN` 추가 → push 시 `.github/workflows/deploy.yml` 이 백엔드 자동 배포 |
+
+**상세 가이드**: [docs/DEPLOY_CI.md](docs/DEPLOY_CI.md) — Vercel/Fly.io 연결 방법, Fly API 토큰 발급, 무료 한도 정리.
 
 ---
 
