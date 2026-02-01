@@ -4,6 +4,7 @@
   padding: 0.75rem 1rem 4rem;
   background: var(--bg);
   min-height: 100vh;
+  touch-action: manipulation; /* 모바일 300ms 탭 지연 제거 */
 }
 .calendar-header {
   text-align: center;
@@ -706,10 +707,13 @@
   font-weight: 500;
 }
 
+/* 숨김 export 영역: 레이아웃/터치 영향 없이 화면 밖에 두어 toPng만 사용 */
 .calendar-export-target {
   position: fixed;
   left: -9999px;
   top: 0;
+  pointer-events: none;
+  contain: strict;
   overflow: hidden;
   background: #fff;
   box-sizing: border-box;
@@ -943,6 +947,7 @@
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s;
   text-align: left;
+  touch-action: manipulation;
 }
 .date-picker-trigger:hover {
   border-color: var(--primary);
@@ -999,6 +1004,7 @@
   align-items: center;
   justify-content: center;
   transition: background 0.2s;
+  touch-action: manipulation;
 }
 .date-picker-nav:hover {
   background: var(--border);
@@ -1038,6 +1044,7 @@
   align-items: center;
   justify-content: center;
   transition: background 0.15s, color 0.15s;
+  touch-action: manipulation;
 }
 .date-picker-day:hover:not(.date-picker-day-disabled):not(.date-picker-day-selected) {
   background: var(--input-bg);

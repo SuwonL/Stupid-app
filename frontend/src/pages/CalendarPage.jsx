@@ -46,7 +46,7 @@ export default function CalendarPage() {
   const [editContent, setEditContent] = useState('')
   const [editColor, setEditColor] = useState(PRESET_COLORS[0])
 
-  /* 색상 드롭다운: 열린 직후 같은 탭이 바깥 클릭으로 처리되지 않도록 지연 후 리스너 등록 */
+  /* 색상 드롭다운: 열린 직후 같은 탭이 바깥 클릭으로 처리되지 않도록 지연 후 pointerdown 등록 */
   useEffect(() => {
     if (!colorDropdownOpen) return
     const handleOutside = (e) => {
@@ -55,23 +55,25 @@ export default function CalendarPage() {
       }
     }
     const t = setTimeout(() => {
-      document.addEventListener('mousedown', handleOutside)
-      document.addEventListener('touchstart', handleOutside, { passive: true })
-    }, 200)
+      document.addEventListener('pointerdown', handleOutside)
+    }, 150)
     return () => {
       clearTimeout(t)
-      document.removeEventListener('mousedown', handleOutside)
-      document.removeEventListener('touchstart', handleOutside)
+      document.removeEventListener('pointerdown', handleOutside)
     }
   }, [colorDropdownOpen])
 
-  /* 달력을 이미지로 렌더링해 우클릭 저장 가능하게. 모바일에서 메인 스레드 블로킹 방지로 지연 후 실행 */
+  /* 달력을 이미지로 렌더링. 모바일: requestIdleCallback + 낮은 pixelRatio로 메인 스레드 블로킹 최소화 */
   useEffect(() => {
     let cancelled = false
-    const t = setTimeout(() => {
+    let idleId = null
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+    const delay = isMobile ? 600 : 400
+    const pixelRatio = isMobile ? 1 : 2
+    const runExport = () => {
       if (!exportRef.current || cancelled) return
       const opt = {
-        pixelRatio: 2,
+        pixelRatio,
         width: EXPORT_WIDTH,
         height: EXPORT_HEIGHT,
         style: { width: EXPORT_WIDTH, height: EXPORT_HEIGHT },
@@ -79,10 +81,19 @@ export default function CalendarPage() {
       toPng(exportRef.current, opt)
         .then((url) => { if (!cancelled) setCalendarImageDataUrl(url) })
         .catch(() => { if (!cancelled) setCalendarImageDataUrl(null) })
-    }, 400)
+    }
+    const t = setTimeout(() => {
+      if (cancelled) return
+      if (typeof requestIdleCallback !== 'undefined') {
+        idleId = requestIdleCallback(runExport, { timeout: 1200 })
+      } else {
+        runExport()
+      }
+    }, delay)
     return () => {
       cancelled = true
       clearTimeout(t)
+      if (idleId != null && typeof cancelIdleCallback !== 'undefined') cancelIdleCallback(idleId)
     }
   }, [year, month, events, styleId])
 
@@ -230,8 +241,11 @@ export default function CalendarPage() {
                 type="button"
                 className="color-trigger"
                 style={{ backgroundColor: eventColor }}
-                onClick={() => setColorDropdownOpen((v) => !v)}
-                onPointerDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setColorDropdownOpen((v) => !v)
+                }}
                 aria-expanded={colorDropdownOpen}
                 aria-haspopup="listbox"
                 aria-label="색상 선택"

@@ -52,13 +52,11 @@ export default function DatePickerField({ value, onChange, min, max, placeholder
       if (ref.current && !ref.current.contains(e.target)) setOpen(false)
     }
     const t = setTimeout(() => {
-      document.addEventListener('mousedown', handleOutside)
-      document.addEventListener('touchstart', handleOutside, { passive: true })
-    }, 100)
+      document.addEventListener('pointerdown', handleOutside)
+    }, 150)
     return () => {
       clearTimeout(t)
-      document.removeEventListener('mousedown', handleOutside)
-      document.removeEventListener('touchstart', handleOutside)
+      document.removeEventListener('pointerdown', handleOutside)
     }
   }, [open])
 
@@ -106,8 +104,11 @@ export default function DatePickerField({ value, onChange, min, max, placeholder
       <button
         type="button"
         className="date-picker-trigger"
-        onClick={() => setOpen((v) => !v)}
-        onPointerDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setOpen((v) => !v)
+        }}
       >
         <span className={displayValue ? '' : 'date-picker-placeholder'}>{displayValue || placeholder}</span>
         <span className="date-picker-icon" aria-hidden>📅</span>
