@@ -1,0 +1,426 @@
+.calendar-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0.75rem 1rem 4rem;
+  background: var(--bg);
+  min-height: 100vh;
+}
+.calendar-header {
+  text-align: center;
+  padding: 1rem 0 1.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+.calendar-header h1 {
+  margin: 0 0 0.2rem 0;
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.calendar-sub {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+.calendar-header .back-to-home {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--primary);
+  text-decoration: none;
+}
+.calendar-header .back-to-home:hover {
+  text-decoration: underline;
+}
+
+.calendar-control.card,
+.calendar-preview.card,
+.event-section.card,
+.export-section.card {
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.style-select {
+  margin-top: 0.5rem;
+}
+.style-label {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin-right: 0.5rem;
+}
+.style-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+.style-btn {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.style-btn:hover {
+  background: var(--input-bg);
+  color: var(--text);
+}
+.style-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.calendar-preview .calendar-grid {
+  max-width: 100%;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0;
+  font-size: 0.8125rem;
+}
+.cal-head {
+  display: contents;
+}
+.cal-head-cell {
+  padding: 0.4rem 0.25rem;
+  text-align: center;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.cal-body {
+  display: contents;
+}
+.cal-cell {
+  aspect-ratio: 1;
+  min-height: 44px;
+  padding: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  color: var(--text);
+}
+.cal-cell:nth-child(7n) {
+  border-right: none;
+}
+.cal-cell-empty {
+  background: var(--input-bg);
+  border-right: 1px solid var(--border);
+}
+.cal-cell-num {
+  font-weight: 500;
+}
+.cal-cell-events {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  justify-content: center;
+  margin-top: 2px;
+}
+.cal-event-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cal-event-more {
+  font-size: 0.625rem;
+  color: var(--text-secondary);
+}
+
+/* 모던: 세련된 최신형 (깔끔한 라인, 부드러운 톤) */
+.calendar-style-modern .cal-head-cell {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.5rem 0.25rem;
+}
+.calendar-style-modern .cal-cell {
+  background: #fff;
+  color: #1e293b;
+  border-color: #f1f5f9;
+  font-weight: 500;
+  min-height: 48px;
+}
+.calendar-style-modern .cal-cell-empty {
+  background: #fafafa;
+}
+.calendar-style-modern .cal-cell-day:hover {
+  background: #f8fafc;
+}
+.calendar-style-modern .cal-event-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.8);
+}
+
+.calendar-style-minimal .cal-head-cell,
+.calendar-style-minimal .cal-cell {
+  color: #0f172a;
+  border-color: #e2e8f0;
+  background: #fff;
+}
+.calendar-style-minimal .cal-cell-empty {
+  background: #f8fafc;
+}
+
+.calendar-style-colorful .cal-head-cell {
+  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+  color: #fff;
+  border-color: #3b82f6;
+}
+.calendar-style-colorful .cal-cell {
+  background: #fef3c7;
+  color: #78350f;
+  border-color: #fcd34d;
+}
+.calendar-style-colorful .cal-cell-empty {
+  background: #fef9c3;
+}
+
+.calendar-style-dark .cal-head-cell,
+.calendar-style-dark .cal-cell {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+.calendar-style-dark .cal-cell-empty {
+  background: #0f172a;
+}
+
+.calendar-style-grid .cal-head-cell,
+.calendar-style-grid .cal-cell {
+  border-width: 2px;
+  border-color: #0f172a;
+  background: #fff;
+  color: #0f172a;
+}
+.calendar-style-grid .cal-cell-empty {
+  background: #f1f5f9;
+}
+
+.event-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.event-field {
+  display: block;
+}
+.event-field-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+.event-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+  color: var(--text);
+  font-size: 0.875rem;
+}
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.color-swatch.active {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.color-input {
+  width: 36px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.add-event-btn {
+  padding: 0.5rem 0.75rem;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-start;
+}
+.add-event-btn:hover {
+  opacity: 0.9;
+}
+
+.event-list-wrap {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.event-list-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.event-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.event-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8125rem;
+}
+.event-item-date {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  min-width: 100px;
+}
+.event-item-content {
+  flex: 1;
+  padding-left: 0.5rem;
+  border-left: 3px solid #3b82f6;
+}
+.event-item-remove {
+  padding: 0.2rem 0.4rem;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.125rem;
+  line-height: 1;
+}
+.event-item-remove:hover {
+  color: var(--error-text, #dc2626);
+}
+
+.ratio-btns {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+.ratio-btn {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.ratio-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.export-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.reflect-btn {
+  padding: 0.6rem 1.25rem;
+  background: var(--card-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.reflect-btn:hover {
+  background: var(--input-bg);
+  border-color: var(--primary);
+}
+.download-btn {
+  padding: 0.6rem 1.25rem;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.download-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.download-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.reflect-message {
+  font-size: 0.875rem;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.calendar-export-target {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  overflow: hidden;
+  background: #fff;
+  box-sizing: border-box;
+  z-index: -1;
+}
+.calendar-export-target .calendar-style-modern,
+.calendar-export-target .calendar-style-minimal,
+.calendar-export-target .calendar-style-colorful,
+.calendar-export-target .calendar-style-dark,
+.calendar-export-target .calendar-style-grid {
+  width: 100%;
+  height: 100%;
+  padding: 1.5rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.cal-export-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: inherit;
+}
+.calendar-export-target .cal-export-grid {
+  width: 100%;
+  max-width: 100%;
+  flex: 1;
+  font-size: clamp(10px, 2vw, 14px);
+}
+.calendar-export-target .cal-cell {
+  min-height: 0;
+}

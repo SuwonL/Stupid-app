@@ -43,17 +43,30 @@ export async function getIngredients(abortSignal = null) {
   return parseJsonUtf8(res, url)
 }
 
-export async function recommendRecipes({ ingredientIds, ingredientNames, strictOnly }) {
+export async function recommendRecipes({ ingredientIds, ingredientNames, strictOnly }, abortSignal = null) {
   const url = `${API_BASE}/recipes/recommend`
   const body = {}
   if (ingredientIds?.length) body.ingredientIds = ingredientIds
   if (ingredientNames?.length) body.ingredientNames = ingredientNames
   if (strictOnly === true) body.strictOnly = true
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json;charset=UTF-8' },
-    body: JSON.stringify(body),
-  })
+  let res
+  try {
+    res = await fetchWithTimeout(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json;charset=UTF-8' },
+        body: JSON.stringify(body),
+      },
+      FETCH_TIMEOUT_MS,
+      abortSignal
+    )
+  } catch (e) {
+    const msg = e.name === 'AbortError'
+      ? `서버 응답 없음 (${FETCH_TIMEOUT_MS / 1000}초). 백엔드 URL 확인: ${url}`
+      : `연결 실패. URL: ${url} — ${e.message}`
+    throw new Error(msg)
+  }
   if (!res.ok) throw new Error(`메뉴 추천 실패 (${res.status}). URL: ${url}`)
   return parseJsonUtf8(res, url)
 }

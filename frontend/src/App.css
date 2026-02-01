@@ -38,6 +38,46 @@
   box-sizing: border-box;
 }
 
+.app-layout {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+.app-nav {
+  display: flex;
+  gap: 0;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 1rem;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.app-nav-link {
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+.app-nav-link:hover {
+  color: var(--text);
+}
+.app-nav-link.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+.app-main {
+  flex: 1;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+
 .app {
   max-width: 720px;
   margin: 0 auto;
