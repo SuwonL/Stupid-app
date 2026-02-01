@@ -2,6 +2,15 @@
 const raw = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || ''
 const API_BASE = raw ? (raw.replace(/\/$/, '') + (raw.endsWith('/api') ? '' : '/api')) : '/api'
 
+const FETCH_TIMEOUT_MS = 15000
+
+/** 타임아웃이 있는 fetch. 응답 없으면 15초 후 에러 */
+function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timeoutId))
+}
+
 /**
  * 응답을 UTF-8 텍스트로 읽은 뒤 JSON 파싱.
  * 파싱 실패 시 원인 파악을 위해 요청 URL, 상태, Content-Type, 본문 앞부분을 포함한 에러를 던짐.
@@ -30,11 +39,14 @@ export async function getIngredients() {
   const url = `${API_BASE}/ingredients`
   let res
   try {
-    res = await fetch(url, {
+    res = await fetchWithTimeout(url, {
       headers: { Accept: 'application/json;charset=UTF-8' },
     })
   } catch (e) {
-    throw new Error(`서버에 연결할 수 없습니다. 요청 URL: ${url}\n${e.message}`)
+    const msg = e.name === 'AbortError'
+      ? `서버 응답이 없습니다. (${FETCH_TIMEOUT_MS / 1000}초 초과)\n요청 URL: ${url}\n백엔드가 실행 중인지 확인해 주세요.`
+      : `서버에 연결할 수 없습니다. 요청 URL: ${url}\n${e.message}`
+    throw new Error(msg)
   }
   if (!res.ok) throw new Error(`재료 목록 실패 (${res.status}). 요청 URL: ${url}`)
   return parseJsonUtf8(res, url)

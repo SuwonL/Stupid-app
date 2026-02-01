@@ -58,13 +58,17 @@ function App() {
 
   const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'))
 
-  useEffect(() => {
+  const loadIngredients = () => {
     setIngredientsLoading(true)
     setError(null)
     getIngredients()
       .then(setIngredients)
       .catch((e) => setError(e.message))
       .finally(() => setIngredientsLoading(false))
+  }
+
+  useEffect(() => {
+    loadIngredients()
   }, [])
 
   const MAX_INGREDIENTS = 10
@@ -150,7 +154,21 @@ function App() {
           <p className="ingredients-loading"><span className="spinner-inline" /> 재료 목록 불러오는 중…</p>
         )}
         {!ingredientsLoading && ingredients.length === 0 && error && (
-          <p className="ingredients-error">재료 목록을 불러오지 못했습니다. 새로고침해 보세요.<br /><small>{error}</small></p>
+          <div className="ingredients-error">
+            <p>재료 목록을 불러오지 못했습니다.<br /><small>{error}</small></p>
+            <p className="ingredients-error-hint">백엔드(Fly.io)가 켜져 있는지 확인하고, 아래 링크로 접속해 JSON이 보이면 서버는 정상입니다.</p>
+            <a
+              href="https://backend-little-cloud-7780.fly.dev/api/ingredients"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ingredients-error-link"
+            >
+              백엔드 재료 API 열기
+            </a>
+            <button type="button" className="retry-btn" onClick={loadIngredients}>
+              재시도
+            </button>
+          </div>
         )}
         {!ingredientsLoading && ingredients.length === 0 && !error && (
           <p className="ingredients-empty">재료 목록이 없습니다.</p>
