@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_URL || '/api'
+// VITE_API_URL 또는 VITE_API_BASE_URL. 베이스만 넣었으면(끝에 /api 없으면) /api 붙임
+const raw = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || ''
+const API_BASE = raw ? (raw.replace(/\/$/, '') + (raw.endsWith('/api') ? '' : '/api')) : '/api'
 
 /** 응답 바이트를 UTF-8로 강제 해석 후 JSON 파싱 (한글 깨짐 방지) */
 async function parseJsonUtf8(res) {
