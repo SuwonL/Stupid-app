@@ -9,3 +9,4 @@ backend/application-local.properties
 .env
 .env.local
 .env.*.local
+.env*
