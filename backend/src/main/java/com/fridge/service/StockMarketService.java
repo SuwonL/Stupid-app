@@ -121,10 +121,16 @@ public class StockMarketService {
             if (!hasKisConfig()) return errorIndicators(symbol, "KIS 공식 API 키가 없어 국내 과거 시세를 조회할 수 없습니다.");
             return getKisIndicators(symbol);
         }
-        if (hasText(polygonApiKey)) {
-            return getPolygonIndicators(symbol);
+        if (!hasText(polygonApiKey)) {
+            return errorIndicators(symbol, "Polygon 공식 API 키가 없어 해외 과거 시세를 조회할 수 없습니다.");
         }
-        return errorIndicators(symbol, "Polygon 공식 API 키가 없어 해외 과거 시세를 조회할 수 없습니다.");
+        // 현재가는 getOfficialQuote로 조회한다(Polygon 실패 시 Finnhub로 자동 전환되는 기존 로직 재사용).
+        // 과거 시세(이동평균·거래량 평균)는 Polygon 전용 — Finnhub 무료 티어는 과거 일봉을 제공하지 않는다.
+        StockQuoteDto quote = getOfficialQuote(symbol);
+        if (quote.getError() != null || quote.getPrice() == null) {
+            return errorIndicators(symbol, "현재가 조회 실패로 지표를 계산할 수 없습니다.");
+        }
+        return getPolygonIndicators(symbol, quote);
     }
 
     private StockIndicatorsDto getKisIndicators(String symbol) {
@@ -168,12 +174,8 @@ public class StockMarketService {
         }
     }
 
-    private StockIndicatorsDto getPolygonIndicators(String symbol) {
+    private StockIndicatorsDto getPolygonIndicators(String symbol, StockQuoteDto quote) {
         try {
-            StockQuoteDto quote = getPolygonQuote(symbol);
-            if (quote.getError() != null || quote.getPrice() == null) {
-                return errorIndicators(symbol, "현재가 조회 실패로 지표를 계산할 수 없습니다.");
-            }
             LocalDate end = LocalDate.now();
             LocalDate start = end.minusDays(45);
             String from = start.format(DateTimeFormatter.ISO_LOCAL_DATE);
