@@ -70,6 +70,12 @@
 .app-nav-links {
   display: flex;
   gap: 0;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.app-nav-links::-webkit-scrollbar {
+  display: none;
 }
 .app-nav-right {
   display: flex;
@@ -133,10 +139,11 @@
   line-height: 1;
 }
 .app-nav-link {
-  padding: 0.75rem 1.25rem;
+  padding: 0.75rem 0.95rem;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
   font-size: 0.9375rem;
   font-weight: 500;
   color: var(--text-secondary);
@@ -144,6 +151,20 @@
   border-bottom: 2px solid transparent;
   transition: color 0.2s, border-color 0.2s;
   touch-action: manipulation;
+}
+@media (max-width: 520px) {
+  .app-nav {
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+  }
+  .app-nav-link {
+    padding-left: 0.7rem;
+    padding-right: 0.7rem;
+    font-size: 0.875rem;
+  }
+  .app-nav-right {
+    gap: 0.35rem;
+  }
 }
 .app-nav-link:hover {
   color: var(--text);

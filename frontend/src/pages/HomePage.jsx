@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Beef, Calendar } from 'lucide-react'
+import { Beef, Calendar, TrendingUp } from 'lucide-react'
 import './HomePage.css'
 
 export default function HomePage() {
@@ -10,6 +10,11 @@ export default function HomePage() {
         <p className="home-sub">원하는 모듈을 선택하세요.</p>
       </header>
       <nav className="module-cards">
+        <Link to="/stocks" className="module-card card">
+          <TrendingUp size={32} className="module-card-icon" aria-hidden />
+          <h2 className="module-card-title">주식 추천</h2>
+          <p className="module-card-desc">관심 조건을 고르고 후보 종목을 비교하는 화면입니다.</p>
+        </Link>
         <Link to="/fridge" className="module-card card">
           <Beef size={32} className="module-card-icon" aria-hidden />
           <h2 className="module-card-title">냉장고 메뉴 추천</h2>

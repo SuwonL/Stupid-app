@@ -126,7 +126,7 @@ fly launch
 
 ## 6. 환경 변수(Secrets) 설정
 
-YouTube API·CORS를 쓰려면 **secrets** 로 넣습니다.  
+YouTube API·CORS·주식 API·AI 판단을 쓰려면 **secrets** 로 넣습니다.  
 (값에 공백·특수문자가 있으면 따옴표로 감싸세요.)
 
 ```bash
@@ -143,6 +143,28 @@ fly secrets set APP_CORS_ALLOWED_ORIGINS=https://본인-프론트.vercel.app
 ```bash
 fly secrets list
 ```
+
+### 주식 추천용 Secrets
+
+무료 기준으로 OpenAI는 선택입니다. 비용을 0원으로 유지하려면 `APP_OPENAI_API_KEY`는 설정하지 마세요.
+
+```bash
+fly secrets set APP_STOCK_KIS_APP_KEY=한국투자증권_APP_KEY
+fly secrets set APP_STOCK_KIS_APP_SECRET=한국투자증권_APP_SECRET
+fly secrets set APP_STOCK_NAVER_CLIENT_ID=네이버_CLIENT_ID
+fly secrets set APP_STOCK_NAVER_CLIENT_SECRET=네이버_CLIENT_SECRET
+fly secrets set APP_STOCK_FINNHUB_API_KEY=FINNHUB_API_KEY
+fly secrets set APP_STOCK_POLYGON_API_KEY=POLYGON_API_KEY
+```
+
+OpenAI AI 매수 판단을 켤 때만:
+
+```bash
+fly secrets set APP_OPENAI_API_KEY=OPENAI_API_KEY
+fly secrets set APP_OPENAI_MODEL=gpt-5.2
+```
+
+프론트엔드 Vercel에는 위 API 키들을 넣지 마세요. Vercel에는 `VITE_API_URL`만 넣습니다.
 
 ---
 

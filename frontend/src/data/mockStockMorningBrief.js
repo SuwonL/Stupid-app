@@ -1,0 +1,197 @@
+export const mockMorningBriefs = [
+  {
+    id: 'brief-semiconductor',
+    title: '반도체·AI 인프라 수급 점검',
+    baseTime: '08:00',
+    marketMood: '위험 선호 우세',
+    summary: '미국 기술주 강세와 반도체 업황 회복 기대가 이어지며 국내 반도체·AI 관련주 관심이 높습니다.',
+    beginnerSummary: '쉽게 말하면, 오늘은 AI와 반도체 쪽에 돈이 들어올 가능성이 있는 날입니다. 다만 장 시작 직후 너무 오른 종목을 바로 따라 사는 것은 조심해야 합니다.',
+    indices: [
+      { name: 'KOSPI 예상 흐름', value: '강보합 출발 가능', tone: 'positive' },
+      { name: 'NASDAQ 전일 흐름', value: '+1.1% 모멘텀', tone: 'positive' },
+      { name: '환율 변수', value: '안정권 관찰', tone: 'neutral' },
+    ],
+    themes: ['AI 반도체', '전력 인프라', '로봇 자동화'],
+    themeRecommendations: [
+      { theme: 'AI 반도체', name: '삼성전자', code: '005930', reason: '반도체 대표주라 시장 분위기를 따라가기 쉽습니다.', risk: '대형주는 급등폭이 제한될 수 있습니다.' },
+      { theme: '전력 인프라', name: '우리기술투자', code: '041190', reason: '중소형 테마 수급과 거래량 증가를 함께 보는 후보입니다.', risk: '테마가 식으면 변동성이 커질 수 있습니다.' },
+      { theme: '로봇 자동화', name: '제주반도체', code: '080220', reason: '중소형 테마주로 수급 유입 시 탄력이 큽니다.', risk: '손절 기준을 짧게 잡아야 합니다.' },
+    ],
+    watchPoints: [
+      '장 초반 갭상승 종목은 거래량 유지 여부 확인',
+      '외국인 선물 매수 전환 여부가 국내 대형주 방향성에 중요',
+      '전일 급등주는 첫 30분 변동성이 커질 수 있음',
+    ],
+    riskNotes: ['미국 금리 발언', '환율 재상승', '뉴스 선반영 종목 차익실현'],
+  },
+  {
+    id: 'brief-policy',
+    title: '정책·에너지 테마 장전 점검',
+    baseTime: '08:00',
+    marketMood: '테마 장세',
+    summary: '정책 기대와 인프라 투자 뉴스가 중소형주 수급을 자극할 수 있는 구간입니다.',
+    beginnerSummary: '오늘은 시장 전체보다 특정 뉴스가 붙은 종목들이 움직일 수 있습니다. 초보자는 테마 이름보다 거래량이 유지되는지 먼저 보는 게 좋습니다.',
+    indices: [
+      { name: 'KOSDAQ 예상 흐름', value: '테마별 차별화', tone: 'neutral' },
+      { name: '에너지 섹터', value: '거래량 증가 관찰', tone: 'positive' },
+      { name: '단기 과열', value: '높음', tone: 'negative' },
+    ],
+    themes: ['전력망', '신재생', '방산'],
+    themeRecommendations: [
+      { theme: '전력망', name: '우리기술투자', code: '041190', reason: '정책 기대와 중소형 테마 수급을 함께 관찰합니다.', risk: '정책 뉴스가 약해지면 빠르게 밀릴 수 있습니다.' },
+      { theme: '신재생', name: 'KODEX 200', code: '069500', reason: '개별주가 어렵다면 지수 ETF로 접근하는 대안입니다.', risk: '테마 집중 수익률은 낮을 수 있습니다.' },
+      { theme: '방산', name: '제주반도체', code: '080220', reason: '중소형 테마 수급이 들어올 때 관찰 후보입니다.', risk: '급등 가능주는 변동성이 높습니다.' },
+    ],
+    watchPoints: [
+      '정책 뉴스만으로 오른 종목은 장중 매물 출회 주의',
+      '거래대금이 전일보다 유지되는지 확인',
+      '중소형주는 손절 기준을 먼저 정하고 접근',
+    ],
+    riskNotes: ['정책 기대 소멸', '테마 순환매 종료', '저유동성 종목 급락'],
+  },
+  {
+    id: 'brief-defensive',
+    title: '방어·ETF 중심 시장 점검',
+    baseTime: '08:00',
+    marketMood: '관망 우세',
+    summary: '대형 이벤트를 앞두고 개별주보다 ETF와 방어적 포지션의 비중 조절이 중요합니다.',
+    beginnerSummary: '오늘은 무리해서 새 종목을 사기보다 시장 방향을 확인하는 날에 가깝습니다. 초보자는 개별 급등주보다 ETF나 현금 비중을 생각하는 편이 안전합니다.',
+    indices: [
+      { name: 'S&P 500 흐름', value: '박스권 상단', tone: 'neutral' },
+      { name: '국내 수급', value: '기관 관망', tone: 'neutral' },
+      { name: '변동성', value: '확대 가능', tone: 'negative' },
+    ],
+    themes: ['대표지수 ETF', '인버스 헤지', '배당 방어주'],
+    themeRecommendations: [
+      { theme: '대표지수 ETF', name: 'SPDR S&P 500 ETF', code: 'SPY', reason: '개별주보다 분산된 흐름을 볼 수 있습니다.', risk: '단기 급등 수익은 제한적입니다.' },
+      { theme: '인버스 헤지', name: 'KODEX 인버스', code: '114800', reason: '국내 지수 조정 가능성에 대응하는 후보입니다.', risk: '지수가 오르면 손실이 납니다.' },
+      { theme: '배당 방어주', name: 'KODEX 200', code: '069500', reason: '개별 종목보다 변동성이 낮은 대안입니다.', risk: '시장 전체가 약하면 같이 하락할 수 있습니다.' },
+    ],
+    watchPoints: [
+      '레버리지 ETF는 당일 대응 위주로 제한',
+      '지수 ETF는 분할 접근이 유리',
+      '장중 방향성이 약하면 무리한 추격 매수 지양',
+    ],
+    riskNotes: ['FOMC 경계', '실적 발표 전 변동성', '해외 선물 급변'],
+  },
+]
+
+export const mockAfternoonBriefs = [
+  {
+    id: 'brief-close-supply',
+    title: '장중 수급·마감 대응 점검',
+    baseTime: '15:00',
+    marketMood: '수급 확인 구간',
+    summary: '장 막판에는 외국인·기관 수급과 종가 부근 거래대금 유지 여부가 다음 날 관심 종목 판단에 중요합니다.',
+    beginnerSummary: '오후 3시에는 새로 사기보다 오늘 강했던 종목이 끝까지 버티는지 확인하는 시간이 좋습니다. 종가까지 거래량이 남아 있으면 다음 날도 관심을 받을 수 있습니다.',
+    indices: [
+      { name: 'KOSPI 장중 흐름', value: '종가 방향 확인', tone: 'neutral' },
+      { name: 'KOSDAQ 수급', value: '테마별 편차', tone: 'neutral' },
+      { name: '급등주 리스크', value: '차익실현 주의', tone: 'negative' },
+    ],
+    themes: ['장중 강세 테마', '외국인 순매수', '종가 베팅 후보'],
+    themeRecommendations: [
+      { theme: '장중 강세 테마', name: 'NAVER', code: '035420', reason: '장중 테마가 유지될 때 단기 관찰 후보입니다.', risk: '장 막판 매물이 나오면 다음 날 약할 수 있습니다.' },
+      { theme: '외국인 순매수', name: '삼성전자', code: '005930', reason: '외국인 수급 확인에 적합한 대표 대형주입니다.', risk: '수급이 바뀌면 흐름이 둔해질 수 있습니다.' },
+      { theme: '종가 베팅 후보', name: 'KODEX 레버리지', code: '122630', reason: '지수 반등이 강할 때 단기 대응 후보입니다.', risk: '레버리지는 익일 변동성 위험이 큽니다.' },
+    ],
+    watchPoints: [
+      '종가 부근 거래량이 유지되는 종목은 다음 날 관심 후보',
+      '장중 고점 대비 크게 밀린 급등주는 추격 매수 주의',
+      '기관/외국인 동반 매수 종목은 단기 지속성 점검',
+    ],
+    riskNotes: ['동시호가 변동성', '장 막판 차익실현', '익일 갭하락 가능성'],
+  },
+  {
+    id: 'brief-close-theme',
+    title: '오늘 강했던 테마와 다음 날 관찰 포인트',
+    baseTime: '15:00',
+    marketMood: '테마 선별 필요',
+    summary: '오후 기준으로는 단순 급등보다 거래대금이 남아 있는 테마와 대장주 유지 여부를 확인해야 합니다.',
+    beginnerSummary: '테마주가 많이 오른 날에는 아무 종목이나 사면 늦을 수 있습니다. 대장주가 끝까지 강한지, 후발주는 이미 너무 늦었는지 나눠 봐야 합니다.',
+    indices: [
+      { name: '강세 테마 지속성', value: '대장주 확인', tone: 'positive' },
+      { name: '거래대금', value: '상위 종목 집중', tone: 'positive' },
+      { name: '후발주 위험', value: '높음', tone: 'negative' },
+    ],
+    themes: ['AI 부품', '전력망', '방산'],
+    themeRecommendations: [
+      { theme: 'AI 부품', name: '제주반도체', code: '080220', reason: 'AI 부품 테마의 거래량 증가 후보입니다.', risk: '이미 많이 올랐다면 추격 매수 위험이 큽니다.' },
+      { theme: '전력망', name: '우리기술투자', code: '041190', reason: '중소형 테마 수급을 반영하는 후보입니다.', risk: '거래량이 줄면 단기 탄력이 약해집니다.' },
+      { theme: '방산', name: 'Palantir', code: 'PLTR', reason: '해외 AI·방산 데이터 테마로 관찰할 수 있습니다.', risk: '미국장 변동성과 환율 영향을 받습니다.' },
+    ],
+    watchPoints: [
+      '대장주가 종가까지 유지되는지 확인',
+      '후발주는 이미 늦은 진입일 수 있음',
+      '다음 날은 전일 고점 돌파 여부가 중요',
+    ],
+    riskNotes: ['테마 하루짜리 가능성', '시간외 급등 후 익일 매물', '뉴스 중복 반영'],
+  },
+  {
+    id: 'brief-close-risk',
+    title: '마감 전 리스크와 포지션 정리',
+    baseTime: '15:00',
+    marketMood: '리스크 관리 우선',
+    summary: '오후에는 신규 진입보다 보유 종목의 손절·익절 기준을 점검하고 과열 종목 비중을 줄이는 판단이 중요합니다.',
+    beginnerSummary: '시장이 불안할 때는 수익을 크게 내는 것보다 손실을 줄이는 것이 먼저입니다. 특히 레버리지나 급등주는 다음 날까지 들고 갈지 신중히 봐야 합니다.',
+    indices: [
+      { name: '시장 변동성', value: '확대 경계', tone: 'negative' },
+      { name: 'ETF 대응', value: '분할 유지', tone: 'neutral' },
+      { name: '현금 비중', value: '확보 유리', tone: 'positive' },
+    ],
+    themes: ['방어주', '대표지수 ETF', '인버스 헤지'],
+    themeRecommendations: [
+      { theme: '방어주', name: 'Microsoft', code: 'MSFT', reason: '대형 우량주 성격으로 장기 관찰하기 좋습니다.', risk: '단기 급등보다는 안정성 중심입니다.' },
+      { theme: '대표지수 ETF', name: 'SPDR S&P 500 ETF', code: 'SPY', reason: '개별 종목보다 분산된 시장 접근입니다.', risk: '미국 지수가 약하면 같이 하락합니다.' },
+      { theme: '인버스 헤지', name: 'SQQQ', code: 'SQQQ', reason: '나스닥 하락 가능성에 대응하는 후보입니다.', risk: '상승장에서는 빠르게 손실이 날 수 있습니다.' },
+    ],
+    watchPoints: [
+      '손절 기준에 가까운 종목은 마감 전 재점검',
+      '레버리지 ETF는 오버나이트 위험 확인',
+      '실적 발표 전 종목은 비중 축소도 고려',
+    ],
+    riskNotes: ['해외장 이벤트', '환율 급변', '익일 시초가 변동'],
+  },
+]
+
+export const mockStockKnowledge = [
+  {
+    id: 'knowledge-marketcap',
+    title: '낮은 주가보다 시가총액을 먼저 보세요',
+    baseTime: '08:00',
+    level: '기초',
+    summary: '주가가 낮다고 싼 주식은 아닙니다. 실제로 가격이 가볍게 움직이는지는 시가총액과 유통주식수를 함께 봐야 합니다.',
+    keyPoints: [
+      '2,000원 주식도 시가총액이 크면 무겁게 움직일 수 있음',
+      '50,000원 주식도 시가총액이 작으면 변동성이 클 수 있음',
+      '급등 가능주는 가격보다 수급이 들어왔는지가 중요',
+    ],
+    example: '주가 3,000원·시총 2조 종목보다 주가 40,000원·시총 1,000억 종목이 더 가볍게 움직일 수 있습니다.',
+  },
+  {
+    id: 'knowledge-volume',
+    title: '거래량 증가는 관심의 신호입니다',
+    baseTime: '08:00',
+    level: '기초',
+    summary: '평소보다 거래량이 급증하면 시장 참여자가 몰렸다는 뜻입니다. 다만 거래량 증가 후 가격이 밀리면 차익실현 신호일 수 있습니다.',
+    keyPoints: [
+      '평균 거래량 대비 2배 이상 증가하면 관심 후보',
+      '거래량 증가와 가격 상승이 같이 나와야 긍정적',
+      '갭상승 후 거래량이 줄면 추격 매수 위험이 커짐',
+    ],
+    example: '장 시작 30분 거래량이 평소 하루 거래량의 상당 부분을 넘으면 단기 관심 종목으로 볼 수 있습니다.',
+  },
+  {
+    id: 'knowledge-stoploss',
+    title: '손절 기준은 매수 전에 정해야 합니다',
+    baseTime: '08:00',
+    level: '기초',
+    summary: '특히 당일매매와 급등 가능주는 손절 기준이 없으면 작은 손실이 큰 손실로 커질 수 있습니다.',
+    keyPoints: [
+      '매수 구간보다 손절 구간을 먼저 확인',
+      '손절 기준이 너무 멀면 진입 자체를 보류',
+      '레버리지와 급등주는 더 짧은 손절 기준 필요',
+    ],
+    example: '매수 6,500원, 손절 5,950원이라면 손실 허용폭이 약 8%인지 감당 가능한지 먼저 봐야 합니다.',
+  },
+]

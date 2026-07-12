@@ -116,3 +116,115 @@ export async function getYoutubeRecipeSteps(videoId, title) {
   if (!res.ok) throw new Error(`자막 실패 (${res.status}). URL: ${url}`)
   return parseJsonUtf8(res, url)
 }
+
+export async function getStockQuotes(symbols) {
+  const cleanSymbols = (symbols || []).filter(Boolean)
+  if (cleanSymbols.length === 0) return []
+  const params = new URLSearchParams()
+  params.set('symbols', cleanSymbols.join(','))
+  const url = `${API_BASE}/stocks/quotes?${params.toString()}`
+  let res
+  try {
+    res = await fetchWithTimeout(url, { headers: { Accept: 'application/json;charset=UTF-8' } }, FETCH_TIMEOUT_MS)
+  } catch (e) {
+    const msg = e.name === 'AbortError'
+      ? `주식 시세 응답 없음 (${FETCH_TIMEOUT_MS / 1000}초). URL: ${url}`
+      : `주식 시세 연결 실패. URL: ${url} — ${e.message}`
+    throw new Error(msg)
+  }
+  if (!res.ok) throw new Error(`주식 시세 조회 실패 (${res.status}). URL: ${url}`)
+  return parseJsonUtf8(res, url)
+}
+
+export async function getStockMarketStatus(baseTime) {
+  const params = new URLSearchParams()
+  params.set('baseTime', baseTime || '08')
+  const url = `${API_BASE}/stocks/market-status?${params.toString()}`
+  let res
+  try {
+    res = await fetchWithTimeout(url, { headers: { Accept: 'application/json;charset=UTF-8' } }, FETCH_TIMEOUT_MS)
+  } catch (e) {
+    const msg = e.name === 'AbortError'
+      ? `주식현황 응답 없음 (${FETCH_TIMEOUT_MS / 1000}초). URL: ${url}`
+      : `주식현황 연결 실패. URL: ${url} — ${e.message}`
+    throw new Error(msg)
+  }
+  if (!res.ok) throw new Error(`주식현황 조회 실패 (${res.status}). URL: ${url}`)
+  return parseJsonUtf8(res, url)
+}
+
+export async function getStockNews(symbols) {
+  const cleanSymbols = (symbols || []).filter(Boolean)
+  if (cleanSymbols.length === 0) return []
+  const params = new URLSearchParams()
+  params.set('symbols', cleanSymbols.join(','))
+  const url = `${API_BASE}/stocks/news?${params.toString()}`
+  let res
+  try {
+    res = await fetchWithTimeout(url, { headers: { Accept: 'application/json;charset=UTF-8' } }, FETCH_TIMEOUT_MS)
+  } catch (e) {
+    const msg = e.name === 'AbortError'
+      ? `주식 뉴스 응답 없음 (${FETCH_TIMEOUT_MS / 1000}초). URL: ${url}`
+      : `주식 뉴스 연결 실패. URL: ${url} — ${e.message}`
+    throw new Error(msg)
+  }
+  if (!res.ok) throw new Error(`주식 뉴스 조회 실패 (${res.status}). URL: ${url}`)
+  return parseJsonUtf8(res, url)
+}
+
+export async function getStockProviderStatus() {
+  const url = `${API_BASE}/stocks/provider-status`
+  let res
+  try {
+    res = await fetchWithTimeout(url, { headers: { Accept: 'application/json;charset=UTF-8' } }, FETCH_TIMEOUT_MS)
+  } catch (e) {
+    const msg = e.name === 'AbortError'
+      ? `주식 API 상태 응답 없음 (${FETCH_TIMEOUT_MS / 1000}초). URL: ${url}`
+      : `주식 API 상태 연결 실패. URL: ${url} — ${e.message}`
+    throw new Error(msg)
+  }
+  if (!res.ok) throw new Error(`주식 API 상태 조회 실패 (${res.status}). URL: ${url}`)
+  return parseJsonUtf8(res, url)
+}
+
+export async function getStockAiAnalysis(recommendation) {
+  const url = `${API_BASE}/stocks/ai-analysis`
+  const payload = {
+    name: recommendation.name,
+    code: recommendation.code,
+    symbol: recommendation.symbol,
+    marketLabel: recommendation.marketLabel,
+    horizonLabel: recommendation.horizonLabel,
+    holdingPeriod: recommendation.holdingPeriod,
+    recommendedPrice: recommendation.recommendedPrice,
+    liveChangePercent: recommendation.liveChangePercent,
+    buyRange: recommendation.buyRange,
+    takeProfitRange: recommendation.takeProfitRange,
+    stopLossRange: recommendation.stopLossRange,
+    score: recommendation.score,
+    reason: recommendation.reason,
+    tradeStyle: recommendation.tradeStyle,
+    riskFactors: recommendation.riskFactors,
+    criteria: recommendation.criteria,
+    officialNews: recommendation.officialNews,
+  }
+  let res
+  try {
+    res = await fetchWithTimeout(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json;charset=UTF-8', Accept: 'application/json;charset=UTF-8' },
+        body: JSON.stringify(payload),
+      },
+      30000
+    )
+  } catch (e) {
+    const msg = e.name === 'AbortError'
+      ? `AI 매수 판단 응답 없음 (30초). URL: ${url}`
+      : `AI 매수 판단 연결 실패. URL: ${url} — ${e.message}`
+    throw new Error(msg)
+  }
+  if (!res.ok) throw new Error(`AI 매수 판단 실패 (${res.status}). URL: ${url}`)
+  return parseJsonUtf8(res, url)
+}

@@ -1,0 +1,292 @@
+import { useState } from 'react'
+import { AlertTriangle, BadgeCheck, Bot, ChevronDown, ChevronUp, Clock3, ShieldCheck, Target } from 'lucide-react'
+import { getStockAiAnalysis } from '../../api'
+
+function formatPrice(price, code) {
+  if (typeof price !== 'number') return price
+  const isUs = /^[A-Z]+$/.test(code)
+  return isUs ? `$${price.toLocaleString()}` : `${price.toLocaleString()}원`
+}
+
+function getReasonDetails(recommendation) {
+  const { signals } = recommendation
+  const details = [
+    `${signals.theme} 테마가 실시간 추천 기준에 반영되었습니다.`,
+    `수급 흐름은 ${signals.foreignInstitutionFlow === 'positive' ? '긍정적' : signals.foreignInstitutionFlow === 'negative' ? '약세' : '혼조'}으로 판단했습니다.`,
+    `관련 해외 종목 흐름은 ${signals.overseasPeerFlow === 'positive' ? '우호적' : signals.overseasPeerFlow === 'negative' ? '부정적' : '중립'}입니다.`,
+    `거래량 변화 ${signals.volumeChangeRate}%와 전일 대비 변화 ${signals.previousDayChangeRate}%를 함께 반영했습니다.`,
+  ]
+
+  if (signals.overheating) {
+    details.push('다만 단기 과열 신호가 있어 진입 가격과 손절 기준 확인이 필요합니다.')
+  }
+
+  return details
+}
+
+export default function RecommendationCard({ recommendation }) {
+  const [showDetails, setShowDetails] = useState(false)
+  const [aiAnalysis, setAiAnalysis] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState('')
+  const reasonDetails = getReasonDetails(recommendation)
+  const verificationBadges = [
+    { label: '공식 시세', passed: Boolean(recommendation.recommendedPrice && recommendation.quoteSource !== '공식 시세 미확인') },
+    { label: '공식 뉴스', passed: recommendation.officialNews?.length > 0 },
+    { label: '후보군 검증', passed: true },
+  ]
+  const primaryRisks = recommendation.riskFactors.slice(0, 2)
+
+  const handleAiAnalysis = async () => {
+    setAiLoading(true)
+    setAiError('')
+    try {
+      setAiAnalysis(await getStockAiAnalysis(recommendation))
+    } catch (e) {
+      setAiAnalysis(null)
+      setAiError(e.message || 'AI 매수 판단을 불러오지 못했습니다.')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  return (
+    <article className="recommendation-card card">
+      <div className="recommendation-card-head">
+        <div className="recommendation-rank">TOP {recommendation.rank}</div>
+        <span className="recommendation-market">{recommendation.marketLabel}</span>
+      </div>
+
+      <div className="recommendation-main">
+        <div>
+          <h3 className="recommendation-name">{recommendation.name}</h3>
+          <p className="recommendation-code">{recommendation.code}</p>
+        </div>
+        <div className="recommendation-score">
+          <span>{recommendation.score}</span>
+          <small>추천점수</small>
+        </div>
+      </div>
+
+      <div className="recommendation-verification" aria-label="추천 검증 상태">
+        {verificationBadges.map((badge) => (
+          <span key={badge.label} className={badge.passed ? 'passed' : 'failed'}>
+            <ShieldCheck size={13} aria-hidden />
+            {badge.label}
+          </span>
+        ))}
+      </div>
+
+      <dl className="recommendation-facts recommendation-facts-primary">
+        <div>
+          <dt>현재가격</dt>
+          <dd>{formatPrice(recommendation.recommendedPrice, recommendation.code)}</dd>
+        </div>
+        <div>
+          <dt>등락률</dt>
+          <dd className={recommendation.liveChangePercent >= 0 ? 'positive' : 'negative'}>
+            {recommendation.liveChangePercent == null ? '확인 필요' : `${recommendation.liveChangePercent >= 0 ? '+' : ''}${recommendation.liveChangePercent}%`}
+          </dd>
+        </div>
+        <div>
+          <dt>투자 기간</dt>
+          <dd>{recommendation.horizonLabel}</dd>
+        </div>
+        <div>
+          <dt>권장 보유 기간</dt>
+          <dd>{recommendation.holdingPeriod}</dd>
+        </div>
+      </dl>
+
+      <div className="recommendation-ranges">
+        <div>
+          <span>매수 구간</span>
+          <strong>{recommendation.buyRange}</strong>
+        </div>
+        <div>
+          <span>익절 목표</span>
+          <strong>{recommendation.takeProfitRange}</strong>
+        </div>
+        <div>
+          <span>손절 기준</span>
+          <strong>{recommendation.stopLossRange}</strong>
+        </div>
+      </div>
+
+      <div className="recommendation-risk primary">
+        <AlertTriangle size={15} aria-hidden />
+        <span>{primaryRisks.join(' · ')}</span>
+      </div>
+
+      <p className="recommendation-style">
+        <strong>추천 성격</strong>
+        <span>{recommendation.tradeStyle}</span>
+      </p>
+
+      <p className="recommendation-reason">
+        <BadgeCheck size={16} aria-hidden />
+        {recommendation.reason}
+      </p>
+
+      <div className="recommendation-criteria">
+        {recommendation.criteria.map((item) => (
+          <span key={item}>{item}</span>
+        ))}
+      </div>
+
+      {recommendation.feedbackReasons.length > 0 && (
+        <div className="recommendation-feedback">
+          <Target size={15} aria-hidden />
+          <span>{recommendation.feedbackReasons.join(' · ')}</span>
+        </div>
+      )}
+
+      <div className="recommendation-ai">
+        <div className="recommendation-ai-head">
+          <div>
+            <strong>AI 매수 판단</strong>
+            <p>공식 데이터와 현재 추천 기준을 GPT 모델로 한 번 더 점검합니다.</p>
+          </div>
+          <button type="button" onClick={handleAiAnalysis} disabled={aiLoading}>
+            <Bot size={16} aria-hidden />
+            {aiLoading ? '분석 중' : aiAnalysis ? '다시 분석' : 'AI 판단'}
+          </button>
+        </div>
+
+        {aiError && <p className="recommendation-ai-error">{aiError}</p>}
+
+        {aiAnalysis?.error && <p className="recommendation-ai-error">{aiAnalysis.error}</p>}
+
+        {aiAnalysis && !aiAnalysis.error && (
+          <div className="recommendation-ai-result">
+            <span className="recommendation-ai-action">{aiAnalysis.action}</span>
+            <p>{aiAnalysis.summary}</p>
+            <div className="recommendation-ai-columns">
+              <div>
+                <strong>매수 전 확인</strong>
+                <ul>
+                  {(aiAnalysis.buyChecklist || []).map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <strong>리스크</strong>
+                <ul>
+                  {(aiAnalysis.riskChecklist || []).map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <dl className="recommendation-ai-notes">
+              <div>
+                <dt>무효화 기준</dt>
+                <dd>{aiAnalysis.invalidationPoint}</dd>
+              </div>
+              <div>
+                <dt>비중 관리</dt>
+                <dd>{aiAnalysis.positionSizing}</dd>
+              </div>
+            </dl>
+          </div>
+        )}
+      </div>
+
+      <button type="button" className="recommendation-detail-toggle" onClick={() => setShowDetails((value) => !value)}>
+        {showDetails ? <ChevronUp size={16} aria-hidden /> : <ChevronDown size={16} aria-hidden />}
+        {showDetails ? '상세 근거 접기' : '상세 근거 보기'}
+      </button>
+
+      {showDetails && (
+        <div className="recommendation-detail-panel">
+          <dl className="recommendation-facts">
+            <div>
+              <dt>추천 기준</dt>
+              <dd>{recommendation.recommendationBase}</dd>
+            </div>
+            <div>
+              <dt>기준 시각</dt>
+              <dd>{recommendation.basedAt}</dd>
+            </div>
+            <div>
+              <dt>데이터 출처</dt>
+              <dd>{recommendation.quoteSource}</dd>
+            </div>
+          </dl>
+
+          <div className="recommendation-reason-detail">
+            <strong>추천 사유 상세</strong>
+            <ul>
+              {reasonDetails.map((detail) => (
+                <li key={detail}>{detail}</li>
+              ))}
+            </ul>
+          </div>
+
+          {recommendation.surgePotential && (
+            <div className="recommendation-surge">
+              <strong>급등 가능성: {recommendation.surgePotential.level}</strong>
+              <ul>
+                <li>규모: {recommendation.surgePotential.marketCap}</li>
+                <li>거래량: {recommendation.surgePotential.volumeSpike}</li>
+                <li>차트: {recommendation.surgePotential.breakout}</li>
+                <li>재료: {recommendation.surgePotential.catalyst}</li>
+                <li>위험도: {recommendation.surgePotential.riskLevel}</li>
+              </ul>
+            </div>
+          )}
+
+          <div className="recommendation-risk">
+            <AlertTriangle size={15} aria-hidden />
+            <span>{recommendation.riskFactors.join(' · ')}</span>
+          </div>
+
+          {recommendation.quantChecks && (
+            <div className={`recommendation-quant ${recommendation.quantChecks.passed ? 'passed' : 'failed'}`}>
+              <strong>검증 체크 {recommendation.quantChecks.passed ? '통과' : '확인 필요'}</strong>
+              <ul>
+                {recommendation.quantChecks.checks.map((check) => (
+                  <li key={check.label}>
+                    <span>{check.passed ? '통과' : '실패'}</span>
+                    {check.label}: {check.detail}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {recommendation.quantScore?.breakdown?.length > 0 && (
+            <div className="recommendation-score-breakdown">
+              <strong>추천 점수 산식</strong>
+              <ul>
+                {recommendation.quantScore.breakdown.map((item) => (
+                  <li key={item.label}>
+                    {item.label}: {item.score}/{item.max}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {recommendation.officialNews?.length > 0 && (
+            <div className="recommendation-news">
+              <strong>공식 뉴스 근거</strong>
+              {recommendation.officialNews.slice(0, 3).map((item) => (
+                <a key={`${item.source}-${item.title}`} href={item.link} target="_blank" rel="noreferrer">
+                  <span>{item.source}</span>
+                  {item.title}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="recommendation-time">
+        <Clock3 size={14} aria-hidden />
+        {recommendation.quoteSource} 기반 실시간 추천
+      </div>
+    </article>
+  )
+}

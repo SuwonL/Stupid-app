@@ -3,6 +3,7 @@ import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
 import './App.css'
 import FridgePage from './pages/FridgePage'
 import CalendarPage from './pages/CalendarPage'
+import StockPage from './pages/StockPage'
 import ProjectInfoModal from './components/ProjectInfoModal'
 
 const THEME_KEY = 'fridge-menu-theme'
@@ -49,6 +50,9 @@ export default function App() {
     <div className="app-layout">
       <nav className="app-nav" aria-label="메인 메뉴">
         <div className="app-nav-links">
+          <NavLink to="/stocks" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`} end>
+            주식 추천
+          </NavLink>
           <NavLink to="/fridge" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`} end>
             냉장고 메뉴
           </NavLink>
@@ -85,9 +89,10 @@ export default function App() {
       </nav>
       <main className="app-main">
         <Routes>
-          <Route path="/" element={<Navigate to="/fridge" replace />} />
+          <Route path="/" element={<Navigate to="/stocks" replace />} />
           <Route path="/fridge" element={<FridgePage />} />
           <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/stocks" element={<StockPage />} />
         </Routes>
       </main>
 
