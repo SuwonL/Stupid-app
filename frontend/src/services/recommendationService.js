@@ -49,6 +49,52 @@ function createRecommendationId(code, timestamp) {
   return `${timestamp}-${code}`.replace(/[^a-zA-Z0-9-]/g, '')
 }
 
+function parseAmount(text) {
+  const match = String(text).replace(/,/g, '').match(/-?\d+(\.\d+)?/)
+  return match ? Number(match[0]) : null
+}
+
+function formatAmount(value, isUsd) {
+  if (isUsd) {
+    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+  }
+  return `${Math.round(value).toLocaleString('ko-KR')}원`
+}
+
+// mock 데이터의 매수/익절/손절 값은 mock currentPrice 기준 상대적 비율(%)로 설계되어 있음.
+// 실시간 시세가 mock 기준가와 다르면 문자열을 그대로 쓰지 않고, 같은 비율을 실시간가에 다시 적용해 재계산한다.
+function scaleRangeString(rangeText, ratio) {
+  if (!rangeText || !Number.isFinite(ratio)) return rangeText
+  const isUsd = rangeText.includes('$')
+  if (rangeText.includes('~')) {
+    const [lowText, highText] = rangeText.split('~')
+    const low = parseAmount(lowText)
+    const high = parseAmount(highText)
+    if (low == null || high == null) return rangeText
+    return `${formatAmount(low * ratio, isUsd)} ~ ${formatAmount(high * ratio, isUsd)}`
+  }
+  const value = parseAmount(rangeText)
+  if (value == null) return rangeText
+  const suffix = rangeText.includes('이탈') ? ' 이탈' : ''
+  return `${formatAmount(value * ratio, isUsd)}${suffix}`
+}
+
+function buildLiveRanges(candidate, livePrice) {
+  if (!livePrice || !candidate.currentPrice) {
+    return {
+      buyRange: candidate.buyRange,
+      takeProfitRange: candidate.takeProfitRange,
+      stopLossRange: candidate.stopLossRange,
+    }
+  }
+  const ratio = livePrice / candidate.currentPrice
+  return {
+    buyRange: scaleRangeString(candidate.buyRange, ratio),
+    takeProfitRange: scaleRangeString(candidate.takeProfitRange, ratio),
+    stopLossRange: scaleRangeString(candidate.stopLossRange, ratio),
+  }
+}
+
 function normalizeOption(option) {
   if (typeof option === 'string') {
     return { marketScope: option, productType: 'all' }
@@ -74,6 +120,8 @@ function mapCandidateToRecommendation(candidate, rank, option, basedAt, quote = 
   const regionLabel = REGION_LABELS[candidate.region] || candidate.region
   const productLabel = PRODUCT_LABELS[candidate.productType] || candidate.productType
   const horizonLabel = HORIZON_LABELS[candidate.horizonType] || candidate.horizonType
+  const livePrice = quote?.price ?? candidate.currentPrice
+  const liveRanges = buildLiveRanges(candidate, livePrice)
   return {
     recommendationId: createRecommendationId(candidate.code, basedAt.getTime()),
     rank,
@@ -92,7 +140,7 @@ function mapCandidateToRecommendation(candidate, rank, option, basedAt, quote = 
     tradeStyle: candidate.tradeStyle,
     surgePotential: candidate.surgePotential,
     recommendationBase: '공식 데이터 검증',
-    recommendedPrice: quote?.price ?? candidate.currentPrice,
+    recommendedPrice: livePrice,
     previousClose: quote?.previousClose ?? null,
     liveChange: quote?.change ?? null,
     liveChangePercent: quote?.changePercent ?? null,
@@ -104,9 +152,9 @@ function mapCandidateToRecommendation(candidate, rank, option, basedAt, quote = 
     score: feedback.adjustedScore,
     originalScore: candidate.score,
     reason: candidate.reason,
-    buyRange: candidate.buyRange,
-    takeProfitRange: candidate.takeProfitRange,
-    stopLossRange: candidate.stopLossRange,
+    buyRange: liveRanges.buyRange,
+    takeProfitRange: liveRanges.takeProfitRange,
+    stopLossRange: liveRanges.stopLossRange,
     riskFactors: candidate.riskFactors,
     criteria: candidate.criteria,
     signals: candidate.signals,
