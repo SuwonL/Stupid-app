@@ -206,48 +206,6 @@ export async function getStockProviderStatus() {
   return parseJsonUtf8(res, url)
 }
 
-export async function getStockAiAnalysis(recommendation) {
-  const url = `${API_BASE}/stocks/ai-analysis`
-  const payload = {
-    name: recommendation.name,
-    code: recommendation.code,
-    symbol: recommendation.symbol,
-    marketLabel: recommendation.marketLabel,
-    horizonLabel: recommendation.horizonLabel,
-    holdingPeriod: recommendation.holdingPeriod,
-    recommendedPrice: recommendation.recommendedPrice,
-    liveChangePercent: recommendation.liveChangePercent,
-    buyRange: recommendation.buyRange,
-    takeProfitRange: recommendation.takeProfitRange,
-    stopLossRange: recommendation.stopLossRange,
-    score: recommendation.score,
-    reason: recommendation.reason,
-    tradeStyle: recommendation.tradeStyle,
-    riskFactors: recommendation.riskFactors,
-    criteria: recommendation.criteria,
-    officialNews: recommendation.officialNews,
-  }
-  let res
-  try {
-    res = await fetchWithTimeout(
-      url,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json;charset=UTF-8', Accept: 'application/json;charset=UTF-8' },
-        body: JSON.stringify(payload),
-      },
-      30000
-    )
-  } catch (e) {
-    const msg = e.name === 'AbortError'
-      ? `AI 매수 판단 응답 없음 (30초). URL: ${url}`
-      : `AI 매수 판단 연결 실패. URL: ${url} — ${e.message}`
-    throw new Error(msg)
-  }
-  if (!res.ok) throw new Error(`AI 매수 판단 실패 (${res.status}). URL: ${url}`)
-  return parseJsonUtf8(res, url)
-}
-
 export async function getTrendingMemes() {
   const url = `${API_BASE}/memes/trending`
   let res

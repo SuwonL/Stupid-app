@@ -909,118 +909,6 @@
   font-weight: 800;
 }
 
-.recommendation-ai {
-  margin-top: 0.85rem;
-  padding: 0.8rem;
-  border: 1px solid rgba(59, 130, 246, 0.22);
-  border-radius: var(--radius-sm);
-  background: rgba(59, 130, 246, 0.08);
-}
-
-.recommendation-ai-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.recommendation-ai-head strong {
-  display: block;
-  color: var(--text);
-  font-size: 0.875rem;
-}
-
-.recommendation-ai-head p,
-.recommendation-ai-result p,
-.recommendation-ai-error {
-  margin: 0.25rem 0 0;
-  color: var(--text-secondary);
-  font-size: 0.78125rem;
-  line-height: 1.45;
-}
-
-.recommendation-ai-head button {
-  flex-shrink: 0;
-  min-height: 34px;
-  padding: 0 0.7rem;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--primary);
-  color: #fff;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.78125rem;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.recommendation-ai-head button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.recommendation-ai-error {
-  color: var(--error-text);
-}
-
-.recommendation-ai-result {
-  margin-top: 0.75rem;
-}
-
-.recommendation-ai-action {
-  display: inline-flex;
-  padding: 0.25rem 0.55rem;
-  border-radius: 999px;
-  background: rgba(34, 197, 94, 0.13);
-  color: #16a34a;
-  font-size: 0.75rem;
-  font-weight: 800;
-}
-
-.recommendation-ai-columns,
-.recommendation-ai-notes {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.6rem;
-  margin-top: 0.65rem;
-}
-
-.recommendation-ai-columns div,
-.recommendation-ai-notes div {
-  padding: 0.65rem;
-  border-radius: var(--radius-sm);
-  background: var(--card-bg);
-}
-
-.recommendation-ai-columns strong,
-.recommendation-ai-notes dt {
-  display: block;
-  color: var(--text);
-  font-size: 0.78125rem;
-  font-weight: 800;
-}
-
-.recommendation-ai-columns ul {
-  margin: 0.35rem 0 0;
-  padding-left: 1rem;
-  color: var(--text-secondary);
-  font-size: 0.78125rem;
-  line-height: 1.45;
-}
-
-.recommendation-ai-notes {
-  margin-bottom: 0;
-}
-
-.recommendation-ai-notes dd {
-  margin: 0.25rem 0 0;
-  color: var(--text-secondary);
-  font-size: 0.78125rem;
-  line-height: 1.45;
-}
-
 .recommendation-detail-toggle:hover {
   border-color: var(--primary);
   color: var(--primary);
@@ -1176,20 +1064,9 @@
 
   .stock-info-grid,
   .stock-info-columns,
-  .recommendation-ai-columns,
-  .recommendation-ai-notes,
   .stock-theme-recommend-list,
   .stock-time-option-list {
     grid-template-columns: 1fr;
-  }
-
-  .recommendation-ai-head {
-    display: grid;
-  }
-
-  .recommendation-ai-head button {
-    width: 100%;
-    justify-content: center;
   }
 
   .performance-prices {

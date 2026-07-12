@@ -1,17 +1,12 @@
 package com.fridge.web;
 
-import com.fridge.dto.StockAiAnalysisDto;
-import com.fridge.dto.StockAiAnalysisRequest;
 import com.fridge.dto.StockIndicatorsDto;
 import com.fridge.dto.StockMarketStatusDto;
 import com.fridge.dto.StockNewsDto;
 import com.fridge.dto.StockProviderStatusDto;
 import com.fridge.dto.StockQuoteDto;
-import com.fridge.service.StockAiAnalysisService;
 import com.fridge.service.StockMarketService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,7 +22,6 @@ import java.util.List;
 public class StockController {
 
     private final StockMarketService stockMarketService;
-    private final StockAiAnalysisService stockAiAnalysisService;
 
     @GetMapping(value = "/quotes", produces = "application/json;charset=UTF-8")
     public ResponseEntity<List<StockQuoteDto>> quotes(@RequestParam String symbols) {
@@ -55,10 +49,5 @@ public class StockController {
     public ResponseEntity<List<StockIndicatorsDto>> indicators(@RequestParam String symbols) {
         List<String> parsed = Arrays.stream(symbols.split(",")).toList();
         return ResponseEntity.ok(stockMarketService.getIndicators(parsed));
-    }
-
-    @PostMapping(value = "/ai-analysis", produces = "application/json;charset=UTF-8")
-    public ResponseEntity<StockAiAnalysisDto> aiAnalysis(@RequestBody StockAiAnalysisRequest request) {
-        return ResponseEntity.ok(stockAiAnalysisService.analyze(request));
     }
 }

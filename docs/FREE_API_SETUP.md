@@ -1,6 +1,6 @@
 ₩# 무료 기준 API 키 설정 가이드
 
-이 프로젝트는 무료 플랜을 우선 사용하도록 설계합니다. 단, Anthropic Claude API는 계정에 무료 크레딧이 있는 경우를 제외하면 사용량 과금입니다. 비용을 0원으로 유지하려면 `APP_ANTHROPIC_API_KEY`를 설정하지 않으면 됩니다.
+이 프로젝트는 무료 플랜만 사용하도록 설계합니다. (AI 매수 판단 기능은 무료로 운영할 수 없어 제거했습니다.)
 
 중요: 이 문서에는 실제 API 키를 입력하지 마세요. 이 파일은 저장소에 포함될 수 있는 문서입니다. 실제 키는 `.gitignore`에 포함된 `backend/application-local.properties` 또는 배포 서비스의 환경변수에만 넣어야 합니다.
 
@@ -85,29 +85,7 @@ app.giphy.api-key=발급받은_GIPHY_KEY
 
 참고: Beta 키는 시간당 42회, 일 1,000회 호출 제한이 있습니다. 트렌딩 밈 목록은 요청마다 1회만 호출하므로 여유가 있지만, 너무 자주 새로고침하지 마세요.
 
-## 6. Anthropic Claude API
-
-용도: 추천 카드의 `AI 매수 판단` 버튼
-
-Anthropic Claude API는 무료 플랜 전용 API가 아닙니다. 계정에 무료 크레딧이 있으면 먼저 사용될 수 있지만, 크레딧이 없거나 소진되면 과금됩니다.
-
-비용을 0원으로 유지하려면 아래 키를 설정하지 마세요. 키가 없으면 앱은 AI 판단 영역에 설정 필요 메시지만 표시하고 API를 호출하지 않습니다.
-
-```properties
-app.anthropic.api-key=발급받은_ANTHROPIC_KEY
-app.anthropic.model=claude-sonnet-5
-```
-
-API 키 생성 위치: https://console.anthropic.com/settings/keys
-
-비용 방지 팁:
-
-- Anthropic 키를 설정하지 않으면 Claude 비용은 0원입니다.
-- 키를 설정하더라도 추천 카드에서 `AI 판단` 버튼을 누를 때만 호출됩니다.
-- Anthropic 콘솔의 Billing에서 월 사용 한도를 낮게 설정하세요.
-- 기본 모델은 `claude-sonnet-5`입니다. 더 저렴한 `claude-haiku-4-5` 또는 더 고성능인 `claude-opus-4-8`로 `app.anthropic.model` / `APP_ANTHROPIC_MODEL`을 바꿔 조정할 수 있습니다.
-
-## 7. 배포 현황 (Vercel + Fly.io)
+## 6. 배포 현황 (Vercel + Fly.io)
 
 이 프로젝트는 프론트엔드와 백엔드를 각각 다른 서비스에 배포합니다.
 
@@ -126,7 +104,6 @@ API 키 생성 위치: https://console.anthropic.com/settings/keys
      APP_STOCK_FINNHUB_API_KEY=<값> \
      APP_STOCK_NAVER_CLIENT_ID=<값> \
      APP_STOCK_NAVER_CLIENT_SECRET=<값> \
-     APP_ANTHROPIC_API_KEY=<값> \
      APP_GIPHY_API_KEY=<값> \
      -a backend-little-cloud-7780
    ```
@@ -137,4 +114,4 @@ API 키 생성 위치: https://console.anthropic.com/settings/keys
    VITE_API_BASE_URL=https://backend-little-cloud-7780.fly.dev/api
    ```
 
-프론트엔드 Vercel에는 `APP_ANTHROPIC_API_KEY`, KIS, Naver, Finnhub, Polygon, Giphy 키를 넣지 마세요. 이 키들은 반드시 백엔드(Fly.io) 환경변수에만 넣어야 합니다.
+프론트엔드 Vercel에는 KIS, Naver, Finnhub, Polygon, Giphy 키를 넣지 마세요. 이 키들은 반드시 백엔드(Fly.io) 환경변수에만 넣어야 합니다.

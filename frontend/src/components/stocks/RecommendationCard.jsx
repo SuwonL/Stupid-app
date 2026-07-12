@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { AlertTriangle, BadgeCheck, Bot, ChevronDown, ChevronUp, Clock3, ShieldCheck, Target } from 'lucide-react'
-import { getStockAiAnalysis } from '../../api'
+import { AlertTriangle, BadgeCheck, ChevronDown, ChevronUp, Clock3, ShieldCheck, Target } from 'lucide-react'
 
 function formatPrice(price, code) {
   if (typeof price !== 'number') return price
@@ -44,9 +43,6 @@ function getReasonDetails(recommendation) {
 export default function RecommendationCard({ recommendation }) {
   const [expanded, setExpanded] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
-  const [aiAnalysis, setAiAnalysis] = useState(null)
-  const [aiLoading, setAiLoading] = useState(false)
-  const [aiError, setAiError] = useState('')
   const reasonDetails = getReasonDetails(recommendation)
   const verificationBadges = [
     { label: '공식 시세', passed: Boolean(recommendation.recommendedPrice && recommendation.quoteSource !== '공식 시세 미확인') },
@@ -54,19 +50,6 @@ export default function RecommendationCard({ recommendation }) {
     { label: '후보군 검증', passed: true },
   ]
   const primaryRisks = recommendation.riskFactors.slice(0, 2)
-
-  const handleAiAnalysis = async () => {
-    setAiLoading(true)
-    setAiError('')
-    try {
-      setAiAnalysis(await getStockAiAnalysis(recommendation))
-    } catch (e) {
-      setAiAnalysis(null)
-      setAiError(e.message || 'AI 매수 판단을 불러오지 못했습니다.')
-    } finally {
-      setAiLoading(false)
-    }
-  }
 
   return (
     <article className="recommendation-card card">
@@ -178,58 +161,6 @@ export default function RecommendationCard({ recommendation }) {
           <span>{recommendation.feedbackReasons.join(' · ')}</span>
         </div>
       )}
-
-      <div className="recommendation-ai">
-        <div className="recommendation-ai-head">
-          <div>
-            <strong>AI 매수 판단</strong>
-            <p>공식 데이터와 현재 추천 기준을 Claude 모델로 한 번 더 점검합니다.</p>
-          </div>
-          <button type="button" onClick={handleAiAnalysis} disabled={aiLoading}>
-            <Bot size={16} aria-hidden />
-            {aiLoading ? '분석 중' : aiAnalysis ? '다시 분석' : 'AI 판단'}
-          </button>
-        </div>
-
-        {aiError && <p className="recommendation-ai-error">{aiError}</p>}
-
-        {aiAnalysis?.error && <p className="recommendation-ai-error">{aiAnalysis.error}</p>}
-
-        {aiAnalysis && !aiAnalysis.error && (
-          <div className="recommendation-ai-result">
-            <span className="recommendation-ai-action">{aiAnalysis.action}</span>
-            <p>{aiAnalysis.summary}</p>
-            <div className="recommendation-ai-columns">
-              <div>
-                <strong>매수 전 확인</strong>
-                <ul>
-                  {(aiAnalysis.buyChecklist || []).map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <strong>리스크</strong>
-                <ul>
-                  {(aiAnalysis.riskChecklist || []).map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-            <dl className="recommendation-ai-notes">
-              <div>
-                <dt>무효화 기준</dt>
-                <dd>{aiAnalysis.invalidationPoint}</dd>
-              </div>
-              <div>
-                <dt>비중 관리</dt>
-                <dd>{aiAnalysis.positionSizing}</dd>
-              </div>
-            </dl>
-          </div>
-        )}
-      </div>
 
       <button type="button" className="recommendation-detail-toggle" onClick={() => setShowDetails((value) => !value)}>
         {showDetails ? <ChevronUp size={16} aria-hidden /> : <ChevronDown size={16} aria-hidden />}
