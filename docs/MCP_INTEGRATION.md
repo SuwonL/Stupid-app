@@ -16,7 +16,7 @@ MCP는 브라우저 사용자가 직접 쓰는 API가 아니라, Codex/Claude De
 - 프론트엔드: Vercel
 - 백엔드: Spring Boot REST API
 - 주식 데이터: KIS/Naver/Finnhub/Polygon
-- AI 판단: 백엔드에서 OpenAI Responses API 호출
+- AI 판단: 백엔드에서 Anthropic Claude Messages API 호출
 
 MCP는 선택 기능입니다. 없어도 웹앱은 동작합니다.
 
@@ -80,10 +80,10 @@ mcp/
     src/server.js
 ```
 
-이 MCP 서버는 직접 KIS/Naver/OpenAI 키를 들고 있지 않고, 이미 떠 있는 백엔드 API만 호출하는 프록시로 만드는 것이 좋습니다.
+이 MCP 서버는 직접 KIS/Naver/Anthropic 키를 들고 있지 않고, 이미 떠 있는 백엔드 API만 호출하는 프록시로 만드는 것이 좋습니다.
 
 ```text
-MCP tool -> Spring Boot backend -> KIS/Naver/Finnhub/Polygon/OpenAI
+MCP tool -> Spring Boot backend -> KIS/Naver/Finnhub/Polygon/Anthropic
 ```
 
 이렇게 하면 키 관리와 호출 정책이 백엔드 한 곳에 모입니다.

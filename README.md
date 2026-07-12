@@ -44,10 +44,10 @@ cd backend
   ```properties
   app.youtube.api-key=여기에_YouTube_키
   app.spoonacular.api-key=여기에_Spoonacular_키
-  app.openai.api-key=여기에_OpenAI_키
+  app.anthropic.api-key=여기에_Anthropic_키
   ```
 - **배포**(Railway, Render 등): 환경변수로 설정.  
-  - `APP_YOUTUBE_API_KEY`, `APP_SPOONACULAR_API_KEY`, `APP_OPENAI_API_KEY` (Spring이 `app.youtube.api-key` 등으로 매핑)
+  - `APP_YOUTUBE_API_KEY`, `APP_SPOONACULAR_API_KEY`, `APP_ANTHROPIC_API_KEY` (Spring이 `app.youtube.api-key` 등으로 매핑)
 
 **YouTube (썸네일·관련 영상)**: [Google Cloud Console](https://console.cloud.google.com/apis/credentials)에서 API 키 생성 후 **YouTube Data API v3** 사용 설정. 키가 없으면 카드 썸네일과 상세 모달의 "관련 영상"이 표시되지 않습니다.
 
@@ -55,8 +55,8 @@ cd backend
 - **무료 한도(50포인트/일)** 내에서만 호출. 일 45회 초과 시 당일 추가 호출 안 함.  
 - 시드: `app.recipe.seed.enabled=false`(기본값)면 data.sql 10개만 사용.
 
-**OpenAI(주식 추천 AI 매수 판단)**: [platform.openai.com](https://platform.openai.com)에서 API Key 발급 후 `app.openai.api-key` 또는 `APP_OPENAI_API_KEY`로 설정.  
-- 기본 모델: `gpt-5.2` (`APP_OPENAI_MODEL` 또는 `app.openai.model`로 변경 가능)  
+**Anthropic Claude(주식 추천 AI 매수 판단)**: [console.anthropic.com](https://console.anthropic.com/settings/keys)에서 API Key 발급 후 `app.anthropic.api-key` 또는 `APP_ANTHROPIC_API_KEY`로 설정.  
+- 기본 모델: `claude-sonnet-5` (`APP_ANTHROPIC_MODEL` 또는 `app.anthropic.model`로 변경 가능)  
 - 프론트엔드에는 키를 넣지 말고 반드시 백엔드 환경변수/로컬 설정 파일에만 넣으세요.
 - 무료 기준 API 키 생성/설정 순서: [docs/FREE_API_SETUP.md](docs/FREE_API_SETUP.md)
 - MCP 연계 가이드: [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md)
