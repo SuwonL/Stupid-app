@@ -68,7 +68,24 @@ app.stock.polygon.api-key=발급받은_POLYGON_KEY
 
 무료 플랜은 호출 수와 데이터 범위 제한이 있습니다. 이 프로젝트에서는 무료 플랜에서 가능한 범위로만 사용합니다.
 
-## 5. Anthropic Claude API
+## 5. Giphy API
+
+용도: 인스타 밈 추천 메뉴의 실시간 트렌딩 GIF(밈 이름·설명·썸네일) 조회
+
+> 참고: 원래 밈 이름은 Tenor API로 받아올 계획이었지만, Tenor API는 2026-06-30부로 서비스가 완전히 종료되어 더 이상 사용할 수 없습니다. 대신 Giphy의 Trending API 하나로 밈 목록(제목+썸네일)을 한 번에 가져옵니다.
+
+1. https://developers.giphy.com 에 접속해 계정을 만듭니다.
+2. `Create an App`으로 새 앱을 만듭니다 (개인/테스트 용도는 `API` 타입의 Beta 키로 충분).
+3. 발급된 API 키를 확인합니다.
+4. 로컬 설정에 넣습니다.
+
+```properties
+app.giphy.api-key=발급받은_GIPHY_KEY
+```
+
+참고: Beta 키는 시간당 42회, 일 1,000회 호출 제한이 있습니다. 트렌딩 밈 목록은 요청마다 1회만 호출하므로 여유가 있지만, 너무 자주 새로고침하지 마세요.
+
+## 6. Anthropic Claude API
 
 용도: 추천 카드의 `AI 매수 판단` 버튼
 
@@ -90,7 +107,7 @@ API 키 생성 위치: https://console.anthropic.com/settings/keys
 - Anthropic 콘솔의 Billing에서 월 사용 한도를 낮게 설정하세요.
 - 기본 모델은 `claude-sonnet-5`입니다. 더 저렴한 `claude-haiku-4-5` 또는 더 고성능인 `claude-opus-4-8`로 `app.anthropic.model` / `APP_ANTHROPIC_MODEL`을 바꿔 조정할 수 있습니다.
 
-## 6. 배포 현황 (Vercel + Fly.io)
+## 7. 배포 현황 (Vercel + Fly.io)
 
 이 프로젝트는 프론트엔드와 백엔드를 각각 다른 서비스에 배포합니다.
 
@@ -110,6 +127,7 @@ API 키 생성 위치: https://console.anthropic.com/settings/keys
      APP_STOCK_NAVER_CLIENT_ID=<값> \
      APP_STOCK_NAVER_CLIENT_SECRET=<값> \
      APP_ANTHROPIC_API_KEY=<값> \
+     APP_GIPHY_API_KEY=<값> \
      -a backend-little-cloud-7780
    ```
 
@@ -119,4 +137,4 @@ API 키 생성 위치: https://console.anthropic.com/settings/keys
    VITE_API_BASE_URL=https://backend-little-cloud-7780.fly.dev/api
    ```
 
-프론트엔드 Vercel에는 `APP_ANTHROPIC_API_KEY`, KIS, Naver, Finnhub, Polygon 키를 넣지 마세요. 이 키들은 반드시 백엔드(Fly.io) 환경변수에만 넣어야 합니다.
+프론트엔드 Vercel에는 `APP_ANTHROPIC_API_KEY`, KIS, Naver, Finnhub, Polygon, Giphy 키를 넣지 마세요. 이 키들은 반드시 백엔드(Fly.io) 환경변수에만 넣어야 합니다.

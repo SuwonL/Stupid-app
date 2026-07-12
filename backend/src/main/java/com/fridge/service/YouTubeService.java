@@ -163,6 +163,84 @@ public class YouTubeService {
         }
     }
 
+    /** 임의 검색어로 유튜브 검색 (예: 밈 관련 인기 영상). limit개로 제한, 실패 시 errorReason에 사유 담김. */
+    public YouTubeSearchResult searchVideosForQuery(String query, int limit) {
+        if (apiKey == null || apiKey.isBlank()) {
+            if (!loggedNoKey) {
+                loggedNoKey = true;
+                log.warn("YouTube API 키가 없습니다. 유튜브 영상이 나오지 않습니다. 로컬: application-local.properties에 app.youtube.api-key= 설정. Fly.io: Secrets에 APP_YOUTUBE_API_KEY 설정 후 fly secrets deploy");
+            }
+            return new YouTubeSearchResult(List.of(), "YouTube API 키가 없습니다. 로컬: application-local.properties에 app.youtube.api-key 설정. Fly.io: Secrets에 APP_YOUTUBE_API_KEY 설정 후 fly secrets deploy");
+        }
+        String q = query != null ? query.trim() : "";
+        if (q.isEmpty()) return new YouTubeSearchResult(List.of(), null);
+        String publishedAfter = ZonedDateTime.now().minusYears(1).format(DateTimeFormatter.ISO_INSTANT);
+        youtubeQuotaTracker.addSearchUsage();
+        try {
+            Map<String, ?> response = restTemplate.getForObject(SEARCH_URL_MULTI, Map.class, q, publishedAfter, apiKey);
+            if (response == null) {
+                log.warn("YouTube 검색 응답이 null입니다. (q: {})", q);
+                return new YouTubeSearchResult(List.of(), "YouTube 검색 응답이 없습니다. 네트워크 또는 API 상태를 확인하세요.");
+            }
+            Object errorObj = response.get("error");
+            if (errorObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> err = (Map<String, Object>) errorObj;
+                Integer code = (Integer) err.get("code");
+                String message = (String) err.get("message");
+                log.warn("YouTube API 에러 (q: {}). code={}, message={}. API 키·할당량·YouTube Data API v3 사용 설정을 확인하세요.", q, code, message);
+                String reason = message != null ? message : ("code=" + code);
+                if (code != null && code == 403) {
+                    reason = "할당량 초과 또는 API 접근 거부(403). " + (message != null ? message : "Google Cloud Console에서 YouTube Data API v3 할당량·API 사용 설정을 확인하세요.");
+                }
+                return new YouTubeSearchResult(List.of(), reason);
+            }
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> items = (List<Map<String, Object>>) response.get("items");
+            if (items == null || items.isEmpty()) {
+                log.debug("YouTube 검색 결과 없음 (q: {}). 응답에 items가 없거나 비어 있습니다.", q);
+                return new YouTubeSearchResult(List.of(), null);
+            }
+            List<YouTubeVideoResult> list = new ArrayList<>();
+            for (Map<String, Object> item : items) {
+                Object idObj = item.get("id");
+                if (!(idObj instanceof Map)) continue;
+                @SuppressWarnings("unchecked")
+                String videoId = (String) ((Map<String, Object>) idObj).get("videoId");
+                if (videoId == null || videoId.isBlank()) continue;
+                String title = null;
+                Object snippetObj = item.get("snippet");
+                if (snippetObj instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> snippet = (Map<String, Object>) snippetObj;
+                    title = (String) snippet.get("title");
+                }
+                list.add(new YouTubeVideoResult(videoId, title != null ? title : ""));
+            }
+            return new YouTubeSearchResult(list.stream().limit(limit).collect(Collectors.toList()), null);
+        } catch (Exception e) {
+            String friendlyReason = null;
+            if (e instanceof HttpStatusCodeException ex) {
+                if (ex.getStatusCode().value() == 403) {
+                    String body = ex.getResponseBodyAsString();
+                    if (body != null && (body.contains("quotaExceeded") || body.contains("quota"))) {
+                        friendlyReason = "YouTube API 일일 할당량을 초과했습니다. 내일 다시 시도하거나 Google Cloud Console에서 할당량을 확인하세요.";
+                    } else {
+                        friendlyReason = "YouTube API 접근이 거부되었습니다(403). API 키·YouTube Data API v3 사용 설정을 확인하세요.";
+                    }
+                }
+            }
+            if (friendlyReason == null && e.getMessage() != null && (e.getMessage().contains("403") || e.getMessage().contains("quota"))) {
+                friendlyReason = "YouTube API 일일 할당량을 초과했습니다. 내일 다시 시도하세요.";
+            }
+            if (friendlyReason == null) {
+                friendlyReason = "YouTube 검색 실패: " + (e.getMessage() != null ? e.getMessage() : "연결 오류");
+            }
+            log.warn("YouTube 검색 실패 (q: {}). {} - API 키(APP_YOUTUBE_API_KEY), 할당량, YouTube Data API v3 사용 설정을 확인하세요.", q, friendlyReason);
+            return new YouTubeSearchResult(List.of(), friendlyReason);
+        }
+    }
+
     @Data
     public static class YouTubeSearchResult {
         private final List<YouTubeVideoResult> videos;

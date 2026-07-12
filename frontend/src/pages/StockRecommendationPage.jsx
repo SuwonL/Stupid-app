@@ -94,7 +94,7 @@ export default function StockRecommendationPage() {
           <section className="stock-action-panel card">
             <div>
               <h2 className="section-title">실시간 추천</h2>
-              <p>{basedAt ? `마지막 추천 시각: ${basedAt}` : '버튼을 누르면 공식 데이터 기준 매수 후보 TOP3를 생성합니다.'}</p>
+              <p>{basedAt ? `마지막 추천 시각: ${basedAt}` : '버튼을 누르면 공식 데이터 기준 매수 후보 TOP5를 생성합니다.'}</p>
             </div>
             <button type="button" className="stock-primary-btn" onClick={handleRecommend} disabled={loading}>
               {loading ? (
@@ -120,7 +120,7 @@ export default function StockRecommendationPage() {
 
           <section className="stock-result-section">
             <div className="result-section-header">
-              <h2 className="section-title">추천 TOP3</h2>
+              <h2 className="section-title">추천 TOP5</h2>
               {recommendations.length > 0 && <span className="stock-result-meta">{recommendations.length}개 표시</span>}
             </div>
 

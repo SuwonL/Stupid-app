@@ -25,6 +25,7 @@ function getReasonDetails(recommendation) {
 }
 
 export default function RecommendationCard({ recommendation }) {
+  const [expanded, setExpanded] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
   const [aiAnalysis, setAiAnalysis] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
@@ -52,22 +53,42 @@ export default function RecommendationCard({ recommendation }) {
 
   return (
     <article className="recommendation-card card">
-      <div className="recommendation-card-head">
-        <div className="recommendation-rank">TOP {recommendation.rank}</div>
-        <span className="recommendation-market">{recommendation.marketLabel}</span>
-      </div>
-
-      <div className="recommendation-main">
-        <div>
-          <h3 className="recommendation-name">{recommendation.name}</h3>
-          <p className="recommendation-code">{recommendation.code}</p>
+      <button
+        type="button"
+        className="recommendation-summary-toggle"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+      >
+        <div className="recommendation-card-head">
+          <div className="recommendation-rank">TOP {recommendation.rank}</div>
+          <span className="recommendation-market">{recommendation.marketLabel}</span>
         </div>
-        <div className="recommendation-score">
-          <span>{recommendation.score}</span>
-          <small>추천점수</small>
-        </div>
-      </div>
 
+        <div className="recommendation-main">
+          <div>
+            <h3 className="recommendation-name">{recommendation.name}</h3>
+            <p className="recommendation-code">
+              {recommendation.code} · {formatPrice(recommendation.recommendedPrice, recommendation.code)}
+              {recommendation.liveChangePercent != null && (
+                <span className={recommendation.liveChangePercent >= 0 ? 'positive' : 'negative'}>
+                  {' '}
+                  {recommendation.liveChangePercent >= 0 ? '+' : ''}{recommendation.liveChangePercent}%
+                </span>
+              )}
+            </p>
+          </div>
+          <div className="recommendation-summary-right">
+            <div className="recommendation-score">
+              <span>{recommendation.score}</span>
+              <small>추천점수</small>
+            </div>
+            {expanded ? <ChevronUp size={18} aria-hidden /> : <ChevronDown size={18} aria-hidden />}
+          </div>
+        </div>
+      </button>
+
+      {expanded && (
+        <>
       <div className="recommendation-verification" aria-label="추천 검증 상태">
         {verificationBadges.map((badge) => (
           <span key={badge.label} className={badge.passed ? 'passed' : 'failed'}>
@@ -287,6 +308,8 @@ export default function RecommendationCard({ recommendation }) {
         <Clock3 size={14} aria-hidden />
         {recommendation.quoteSource} 기반 실시간 추천
       </div>
+        </>
+      )}
     </article>
   )
 }

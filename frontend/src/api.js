@@ -228,3 +228,33 @@ export async function getStockAiAnalysis(recommendation) {
   if (!res.ok) throw new Error(`AI 매수 판단 실패 (${res.status}). URL: ${url}`)
   return parseJsonUtf8(res, url)
 }
+
+export async function getTrendingMemes() {
+  const url = `${API_BASE}/memes/trending`
+  let res
+  try {
+    res = await fetchWithTimeout(url, { headers: { Accept: 'application/json;charset=UTF-8' } }, FETCH_TIMEOUT_MS)
+  } catch (e) {
+    const msg = e.name === 'AbortError'
+      ? `밈 목록 응답 없음 (${FETCH_TIMEOUT_MS / 1000}초). URL: ${url}`
+      : `밈 목록 연결 실패. URL: ${url} — ${e.message}`
+    throw new Error(msg)
+  }
+  if (!res.ok) throw new Error(`밈 목록 조회 실패 (${res.status}). URL: ${url}`)
+  return parseJsonUtf8(res, url)
+}
+
+export async function getMemeVideos(term) {
+  const url = `${API_BASE}/memes/${encodeURIComponent(term)}/videos`
+  let res
+  try {
+    res = await fetchWithTimeout(url, { headers: { Accept: 'application/json;charset=UTF-8' } }, FETCH_TIMEOUT_MS)
+  } catch (e) {
+    const msg = e.name === 'AbortError'
+      ? `밈 관련 영상 응답 없음 (${FETCH_TIMEOUT_MS / 1000}초). URL: ${url}`
+      : `밈 관련 영상 연결 실패. URL: ${url} — ${e.message}`
+    throw new Error(msg)
+  }
+  if (!res.ok) throw new Error(`밈 관련 영상 조회 실패 (${res.status}). URL: ${url}`)
+  return parseJsonUtf8(res, url)
+}

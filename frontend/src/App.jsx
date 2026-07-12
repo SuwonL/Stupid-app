@@ -4,6 +4,7 @@ import './App.css'
 import FridgePage from './pages/FridgePage'
 import CalendarPage from './pages/CalendarPage'
 import StockPage from './pages/StockPage'
+import MemePage from './pages/MemePage'
 import ProjectInfoModal from './components/ProjectInfoModal'
 
 const THEME_KEY = 'fridge-menu-theme'
@@ -59,6 +60,9 @@ export default function App() {
           <NavLink to="/calendar" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`} end>
             자동 달력
           </NavLink>
+          <NavLink to="/memes" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`} end>
+            인스타 밈
+          </NavLink>
         </div>
         <div className="app-nav-right">
           <span className="app-nav-meta" title={`빌드: ${buildTime}`}>
@@ -93,6 +97,7 @@ export default function App() {
           <Route path="/fridge" element={<FridgePage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/stocks" element={<StockPage />} />
+          <Route path="/memes" element={<MemePage />} />
         </Routes>
       </main>
 

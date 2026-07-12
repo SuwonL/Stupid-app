@@ -338,7 +338,7 @@ export async function getCurrentRecommendations(option = { marketScope: 'all', p
     }))
     .filter(({ candidate, adjustedScore }) => buildQuantChecks(candidate, quoteMap.get(candidate.symbol), adjustedScore, newsMap.get(candidate.symbol) || []).passed)
     .sort((a, b) => b.adjustedScore - a.adjustedScore)
-    .slice(0, 3)
+    .slice(0, 5)
     .map(({ candidate }, index) => mapCandidateToRecommendation(candidate, index + 1, option, basedAt, quoteMap.get(candidate.symbol), newsMap.get(candidate.symbol) || []))
 
   if (ranked.length === 0) {
