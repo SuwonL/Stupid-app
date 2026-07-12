@@ -1,6 +1,7 @@
 package com.fridge.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fridge.dto.StockIndicatorsDto;
 import com.fridge.dto.StockMarketStatusDto;
 import com.fridge.dto.StockNewsDto;
 import com.fridge.dto.StockProviderStatusDto;
@@ -20,6 +21,8 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +35,8 @@ public class StockMarketService {
     private static final String FINNHUB_SOURCE = "Finnhub Stock API";
     private static final String NAVER_SOURCE = "Naver Search API";
     private static final List<String> MARKET_STATUS_SYMBOLS = List.of("^KS11", "^KQ11", "SPY", "QQQ");
+    private static final int MA_PERIOD = 20;
+    private static final double OVERHEATING_THRESHOLD_PERCENT = 15.0;
 
     private final RestTemplate restTemplate;
 
@@ -93,6 +98,144 @@ public class StockMarketService {
                 .finnhubConfigured(hasText(finnhubApiKey))
                 .naverConfigured(hasText(naverClientId) && hasText(naverClientSecret))
                 .policy("fail-closed: 공식 시세/뉴스가 검증되지 않으면 추천을 생성하지 않음")
+                .build();
+    }
+
+    /**
+     * 실제 과거 시세(20거래일) 기반 기술 지표. 임의로 만든 값이 아니라 공식 API의 실제 종가·거래량으로 계산한다.
+     * 과거 시세를 가져올 수 없으면 error를 채워 반환한다(가짜 값으로 대체하지 않음).
+     */
+    public List<StockIndicatorsDto> getIndicators(List<String> symbols) {
+        return symbols.stream()
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .distinct()
+                .limit(30)
+                .map(this::getOfficialIndicators)
+                .toList();
+    }
+
+    private StockIndicatorsDto getOfficialIndicators(String symbol) {
+        boolean domestic = isDomesticSymbol(symbol);
+        if (domestic) {
+            if (!hasKisConfig()) return errorIndicators(symbol, "KIS 공식 API 키가 없어 국내 과거 시세를 조회할 수 없습니다.");
+            return getKisIndicators(symbol);
+        }
+        if (hasText(polygonApiKey)) {
+            return getPolygonIndicators(symbol);
+        }
+        return errorIndicators(symbol, "Polygon 공식 API 키가 없어 해외 과거 시세를 조회할 수 없습니다.");
+    }
+
+    private StockIndicatorsDto getKisIndicators(String symbol) {
+        try {
+            String code = symbol.replace(".KS", "").replace(".KQ", "");
+            StockQuoteDto quote = getKisDomesticQuote(symbol);
+            if (quote.getError() != null || quote.getPrice() == null) {
+                return errorIndicators(symbol, "현재가 조회 실패로 지표를 계산할 수 없습니다.");
+            }
+            LocalDate end = LocalDate.now();
+            LocalDate start = end.minusDays(45);
+            String dateFrom = start.format(DateTimeFormatter.BASIC_ISO_DATE);
+            String dateTo = end.format(DateTimeFormatter.BASIC_ISO_DATE);
+            URI uri = URI.create(kisBaseUrl + "/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice"
+                    + "?FID_COND_MRKT_DIV_CODE=J&FID_INPUT_ISCD=" + encode(code)
+                    + "&FID_INPUT_DATE_1=" + dateFrom + "&FID_INPUT_DATE_2=" + dateTo
+                    + "&FID_PERIOD_DIV_CODE=D&FID_ORG_ADJ_PRC=0");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(getKisAccessToken());
+            headers.set("appkey", kisAppKey);
+            headers.set("appsecret", kisAppSecret);
+            headers.set("tr_id", "FHKST03010100");
+            JsonNode root = exchangeJson(uri, headers);
+            List<JsonNode> days = toList(root.path("output2")).stream()
+                    .sorted((a, b) -> b.path("stck_bsop_date").asText("").compareTo(a.path("stck_bsop_date").asText("")))
+                    .limit(MA_PERIOD)
+                    .toList();
+            if (days.size() < 5) return errorIndicators(symbol, "과거 시세 데이터가 부족해 지표를 계산할 수 없습니다.");
+
+            List<Double> closes = new ArrayList<>();
+            List<Long> volumes = new ArrayList<>();
+            for (JsonNode day : days) {
+                Double close = parseDouble(day.path("stck_clpr").asText(null));
+                Long volume = parseLong(day.path("acml_vol").asText(null));
+                if (close != null) closes.add(close);
+                if (volume != null) volumes.add(volume);
+            }
+            return buildIndicators(symbol, quote.getPrice(), quote.getVolume(), closes, volumes, KIS_SOURCE);
+        } catch (Exception e) {
+            return errorIndicators(symbol, "KIS 과거 시세 조회 실패: " + e.getMessage());
+        }
+    }
+
+    private StockIndicatorsDto getPolygonIndicators(String symbol) {
+        try {
+            StockQuoteDto quote = getPolygonQuote(symbol);
+            if (quote.getError() != null || quote.getPrice() == null) {
+                return errorIndicators(symbol, "현재가 조회 실패로 지표를 계산할 수 없습니다.");
+            }
+            LocalDate end = LocalDate.now();
+            LocalDate start = end.minusDays(45);
+            String from = start.format(DateTimeFormatter.ISO_LOCAL_DATE);
+            String to = end.format(DateTimeFormatter.ISO_LOCAL_DATE);
+            URI uri = URI.create("https://api.polygon.io/v2/aggs/ticker/" + encode(symbol)
+                    + "/range/1/day/" + from + "/" + to
+                    + "?adjusted=true&sort=desc&limit=" + MA_PERIOD + "&apiKey=" + encode(polygonApiKey));
+            JsonNode root = exchangeJson(uri, new HttpHeaders());
+            List<JsonNode> results = toList(root.path("results"));
+            if (results.size() < 5) return errorIndicators(symbol, "과거 시세 데이터가 부족해 지표를 계산할 수 없습니다.");
+
+            List<Double> closes = new ArrayList<>();
+            List<Long> volumes = new ArrayList<>();
+            for (JsonNode day : results) {
+                Double close = readDouble(day.path("c"));
+                Long volume = readLong(day.path("v"));
+                if (close != null) closes.add(close);
+                if (volume != null) volumes.add(volume);
+            }
+            return buildIndicators(symbol, quote.getPrice(), quote.getVolume(), closes, volumes, POLYGON_SOURCE);
+        } catch (Exception e) {
+            return errorIndicators(symbol, "Polygon 과거 시세 조회 실패: " + e.getMessage());
+        }
+    }
+
+    private StockIndicatorsDto buildIndicators(String symbol, Double currentPrice, Long currentVolume,
+                                                List<Double> closes, List<Long> volumes, String source) {
+        Double ma = average(closes);
+        Double avgVolume = averageLong(volumes);
+        Double ma20DeviationPercent = (ma != null && ma != 0 && currentPrice != null)
+                ? round((currentPrice - ma) / ma * 100) : null;
+        Double volumeChangeRate = (avgVolume != null && avgVolume != 0 && currentVolume != null)
+                ? round((currentVolume - avgVolume) / avgVolume * 100) : null;
+        Boolean overheating = ma20DeviationPercent != null ? ma20DeviationPercent > OVERHEATING_THRESHOLD_PERCENT : null;
+        return StockIndicatorsDto.builder()
+                .symbol(symbol)
+                .volumeChangeRate(volumeChangeRate)
+                .ma20DeviationPercent(ma20DeviationPercent)
+                .overheating(overheating)
+                .source(source)
+                .build();
+    }
+
+    private Double average(List<Double> values) {
+        if (values == null || values.isEmpty()) return null;
+        double sum = 0;
+        for (Double v : values) sum += v;
+        return sum / values.size();
+    }
+
+    private Double averageLong(List<Long> values) {
+        if (values == null || values.isEmpty()) return null;
+        long sum = 0;
+        for (Long v : values) sum += v;
+        return (double) sum / values.size();
+    }
+
+    private StockIndicatorsDto errorIndicators(String symbol, String message) {
+        return StockIndicatorsDto.builder()
+                .symbol(symbol)
+                .source("Official providers only")
+                .error(message)
                 .build();
     }
 

@@ -8,17 +8,34 @@ function formatPrice(price, code) {
   return isUs ? `$${price.toLocaleString()}` : `${price.toLocaleString()}원`
 }
 
+// 여기 나오는 수치는 전부 공식 API에서 실측한 값입니다(임의 생성 아님). 지표를 못 가져왔으면
+// '확인 안 됨'으로 표시하고, 없는 값을 긍정적/부정적으로 지어내지 않습니다.
 function getReasonDetails(recommendation) {
-  const { signals } = recommendation
-  const details = [
-    `${signals.theme} 테마가 실시간 추천 기준에 반영되었습니다.`,
-    `수급 흐름은 ${signals.foreignInstitutionFlow === 'positive' ? '긍정적' : signals.foreignInstitutionFlow === 'negative' ? '약세' : '혼조'}으로 판단했습니다.`,
-    `관련 해외 종목 흐름은 ${signals.overseasPeerFlow === 'positive' ? '우호적' : signals.overseasPeerFlow === 'negative' ? '부정적' : '중립'}입니다.`,
-    `거래량 변화 ${signals.volumeChangeRate}%와 전일 대비 변화 ${signals.previousDayChangeRate}%를 함께 반영했습니다.`,
-  ]
+  const { indicators, officialNews, liveChangePercent } = recommendation
+  const details = []
 
-  if (signals.overheating) {
-    details.push('다만 단기 과열 신호가 있어 진입 가격과 손절 기준 확인이 필요합니다.')
+  details.push(
+    liveChangePercent == null
+      ? '전일 대비 등락률을 공식 시세에서 확인하지 못했습니다.'
+      : `전일 대비 등락률은 공식 시세 기준 ${liveChangePercent >= 0 ? '+' : ''}${liveChangePercent}%입니다.`
+  )
+
+  details.push(
+    indicators?.volumeChangeRate == null
+      ? '최근 20거래일 평균 대비 거래량 변화를 확인하지 못했습니다.'
+      : `최근 20거래일 평균 거래량 대비 ${indicators.volumeChangeRate >= 0 ? '+' : ''}${indicators.volumeChangeRate}% 변화했습니다.`
+  )
+
+  details.push(
+    indicators?.ma20DeviationPercent == null
+      ? '20일 이동평균 대비 위치를 확인하지 못했습니다.'
+      : `20일 이동평균 대비 ${indicators.ma20DeviationPercent >= 0 ? '+' : ''}${indicators.ma20DeviationPercent}% 위치에 있습니다.`
+  )
+
+  details.push(`공식 뉴스 ${officialNews?.length || 0}건이 확인되었습니다.`)
+
+  if (indicators?.overheating === true) {
+    details.push('20일 이동평균 대비 이격도가 커서(과열 신호) 진입 가격과 손절 기준 확인이 필요합니다.')
   }
 
   return details
@@ -166,7 +183,7 @@ export default function RecommendationCard({ recommendation }) {
         <div className="recommendation-ai-head">
           <div>
             <strong>AI 매수 판단</strong>
-            <p>공식 데이터와 현재 추천 기준을 GPT 모델로 한 번 더 점검합니다.</p>
+            <p>공식 데이터와 현재 추천 기준을 Claude 모델로 한 번 더 점검합니다.</p>
           </div>
           <button type="button" onClick={handleAiAnalysis} disabled={aiLoading}>
             <Bot size={16} aria-hidden />

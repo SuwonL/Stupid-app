@@ -2,6 +2,7 @@ package com.fridge.web;
 
 import com.fridge.dto.StockAiAnalysisDto;
 import com.fridge.dto.StockAiAnalysisRequest;
+import com.fridge.dto.StockIndicatorsDto;
 import com.fridge.dto.StockMarketStatusDto;
 import com.fridge.dto.StockNewsDto;
 import com.fridge.dto.StockProviderStatusDto;
@@ -48,6 +49,12 @@ public class StockController {
     @GetMapping(value = "/provider-status", produces = "application/json;charset=UTF-8")
     public ResponseEntity<StockProviderStatusDto> providerStatus() {
         return ResponseEntity.ok(stockMarketService.getProviderStatus());
+    }
+
+    @GetMapping(value = "/indicators", produces = "application/json;charset=UTF-8")
+    public ResponseEntity<List<StockIndicatorsDto>> indicators(@RequestParam String symbols) {
+        List<String> parsed = Arrays.stream(symbols.split(",")).toList();
+        return ResponseEntity.ok(stockMarketService.getIndicators(parsed));
     }
 
     @PostMapping(value = "/ai-analysis", produces = "application/json;charset=UTF-8")

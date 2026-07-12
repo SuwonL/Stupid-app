@@ -8,7 +8,7 @@ import {
   mockRecommendationCandidates,
 } from '../data/mockRecommendations'
 import { mockFeedbackRules } from '../data/mockEvaluationResults'
-import { getStockNews, getStockProviderStatus, getStockQuotes } from '../api'
+import { getStockIndicators, getStockNews, getStockProviderStatus, getStockQuotes } from '../api'
 
 const SCORE_WEIGHTS = {
   officialQuote: 25,
@@ -114,9 +114,9 @@ function getOptionLabel(option) {
   return `${marketLabel} · ${productLabel} · ${horizonLabel}`
 }
 
-function mapCandidateToRecommendation(candidate, rank, option, basedAt, quote = null, newsItems = []) {
-  const quantScore = calculateQuantScore(candidate, quote, newsItems)
-  const feedback = applyFeedbackToRecommendationScore(candidate, quantScore.total)
+function mapCandidateToRecommendation(candidate, rank, option, basedAt, quote = null, newsItems = [], indicators = null) {
+  const quantScore = calculateQuantScore(candidate, quote, newsItems, indicators)
+  const feedback = applyFeedbackToRecommendationScore(candidate, quantScore.total, quote, indicators, newsItems)
   const regionLabel = REGION_LABELS[candidate.region] || candidate.region
   const productLabel = PRODUCT_LABELS[candidate.productType] || candidate.productType
   const horizonLabel = HORIZON_LABELS[candidate.horizonType] || candidate.horizonType
@@ -148,7 +148,7 @@ function mapCandidateToRecommendation(candidate, rank, option, basedAt, quote = 
     quoteError: quote?.error || null,
     officialNews: newsItems,
     quantScore,
-    quantChecks: buildQuantChecks(candidate, quote, feedback.adjustedScore, newsItems),
+    quantChecks: buildQuantChecks(candidate, quote, feedback.adjustedScore, newsItems, indicators),
     score: feedback.adjustedScore,
     originalScore: candidate.score,
     reason: candidate.reason,
@@ -157,7 +157,7 @@ function mapCandidateToRecommendation(candidate, rank, option, basedAt, quote = 
     stopLossRange: liveRanges.stopLossRange,
     riskFactors: candidate.riskFactors,
     criteria: candidate.criteria,
-    signals: candidate.signals,
+    indicators,
     basedAt: formatDateTime(basedAt),
     selectedOption: option,
     selectedOptionLabel: getOptionLabel(option),
@@ -166,7 +166,7 @@ function mapCandidateToRecommendation(candidate, rank, option, basedAt, quote = 
   }
 }
 
-function calculateQuantScore(candidate, quote, newsItems) {
+function calculateQuantScore(candidate, quote, newsItems, indicators) {
   const changePercent = quote?.changePercent
   const absChange = Math.abs(changePercent ?? 0)
   const volumeScore = quote?.volume ? SCORE_WEIGHTS.volume : Math.round(SCORE_WEIGHTS.volume * 0.4)
@@ -175,7 +175,9 @@ function calculateQuantScore(candidate, quote, newsItems) {
     : Math.max(0, SCORE_WEIGHTS.momentum - Math.max(0, absChange - 8) * 2)
   const officialQuoteScore = quote && !quote.error && quote.price != null ? SCORE_WEIGHTS.officialQuote : 0
   const officialNewsScore = newsItems.length > 0 ? SCORE_WEIGHTS.officialNews : 0
-  const riskScore = candidate.signals.overheating
+  // overheating은 20일 이동평균 대비 실제 괴리율로 백엔드가 계산한 값. 지표를 못 가져왔으면(indicators 없음/error)
+  // 과열 여부를 임의로 단정하지 않고 감점하지 않는다.
+  const riskScore = indicators?.overheating === true
     ? Math.max(0, SCORE_WEIGHTS.risk - 10)
     : SCORE_WEIGHTS.risk
   const strategyFitScore = candidate.productType === 'leveraged' && candidate.horizonType === 'longterm'
@@ -197,24 +199,23 @@ function calculateQuantScore(candidate, quote, newsItems) {
   }
 }
 
-export function applyFeedbackToRecommendationScore(candidate, baseScore, feedbackRules = mockFeedbackRules) {
+// quote/indicators는 모두 공식 API에서 가져온 실측값. 값을 확인할 수 없으면(null) 해당 규칙은 건너뛴다 —
+// 확인 안 된 상태를 임의로 '긍정' 또는 '부정'으로 단정하지 않는다.
+export function applyFeedbackToRecommendationScore(candidate, baseScore, quote = null, indicators = null, newsItems = [], feedbackRules = mockFeedbackRules) {
   let adjustedScore = typeof baseScore === 'number' ? baseScore : candidate.score
   const reasons = []
-  const { signals } = candidate
+  const changePercent = quote?.changePercent
+  const volumeChangeRate = indicators?.volumeChangeRate
+  const overheating = indicators?.overheating
 
-  if (signals.gapUpRate >= 1.5 && signals.volumeChangeRate < 10) {
+  if (changePercent != null && changePercent >= 1.5 && volumeChangeRate != null && volumeChangeRate < 10) {
     adjustedScore -= feedbackRules.gapUpVolumeDropPenalty
-    reasons.push('갭상승 대비 거래량 부족 감점')
+    reasons.push('전일 대비 상승폭 대비 거래량 증가 부족 감점 (실측 거래량 기준)')
   }
 
-  if (signals.newsHeat === 'hot' && signals.overheating) {
+  if (newsItems.length >= 3 && overheating === true) {
     adjustedScore -= feedbackRules.hotNewsOnlyPenalty
-    reasons.push('뉴스 과열 감점')
-  }
-
-  if (signals.foreignInstitutionFlow === 'negative') {
-    adjustedScore -= feedbackRules.foreignInstitutionSellPenalty
-    reasons.push('수급 약화 감점')
+    reasons.push('공식 뉴스 다수 + 이동평균 이격 과열 감점')
   }
 
   if (candidate.productType === 'leveraged' || candidate.productType === 'inverse') {
@@ -222,9 +223,9 @@ export function applyFeedbackToRecommendationScore(candidate, baseScore, feedbac
     reasons.push('레버리지/인버스 변동성 가중치')
   }
 
-  if (signals.previousDayChangeRate >= 4) {
+  if (changePercent != null && changePercent >= 4) {
     adjustedScore -= feedbackRules.excessivePreviousRisePenalty
-    reasons.push('전일 급등 과도 감점')
+    reasons.push('전일 대비 급등 과도 감점 (실측 등락률 기준)')
   }
 
   return {
@@ -233,7 +234,8 @@ export function applyFeedbackToRecommendationScore(candidate, baseScore, feedbac
   }
 }
 
-function buildQuantChecks(candidate, quote, score, newsItems = []) {
+function buildQuantChecks(candidate, quote, score, newsItems = [], indicators = null) {
+  const overheating = indicators?.overheating
   const checks = [
     {
       label: '공식 시세',
@@ -256,9 +258,9 @@ function buildQuantChecks(candidate, quote, score, newsItems = []) {
       detail: `${score}점`,
     },
     {
-      label: '과열 점검',
-      passed: !(candidate.signals.overheating && candidate.signals.gapUpRate >= 5),
-      detail: candidate.signals.overheating ? '과열 신호 있음' : '과열 신호 낮음',
+      label: '과열 점검 (20일 이평 이격도 실측)',
+      passed: !(overheating === true && quote?.changePercent >= 5),
+      detail: overheating == null ? '과거 시세 미확인' : overheating ? '과열 신호 있음' : '과열 신호 낮음',
     },
   ]
   return {
@@ -310,10 +312,12 @@ export async function getCurrentRecommendations(option = { marketScope: 'all', p
   const symbols = filtered.map((candidate) => candidate.symbol).filter(Boolean)
   let quotes
   let newsItems
+  let indicatorsList
   try {
-    ;[quotes, newsItems] = await Promise.all([
+    ;[quotes, newsItems, indicatorsList] = await Promise.all([
       getStockQuotes(symbols),
       getStockNews(symbols),
+      getStockIndicators(symbols),
     ])
   } catch (e) {
     throw createRecommendationError(
@@ -327,19 +331,27 @@ export async function getCurrentRecommendations(option = { marketScope: 'all', p
       .map((quote) => [quote.symbol, quote])
   )
   const newsMap = groupNewsBySymbol(newsItems)
+  const indicatorsMap = new Map(
+    (indicatorsList || [])
+      .filter((item) => item && !item.error)
+      .map((item) => [item.symbol, item])
+  )
   const ranked = filtered
     .filter((candidate) => quoteMap.has(candidate.symbol) && (newsMap.get(candidate.symbol)?.length || 0) > 0)
     .map((candidate) => ({
       candidate,
       adjustedScore: applyFeedbackToRecommendationScore(
         candidate,
-        calculateQuantScore(candidate, quoteMap.get(candidate.symbol), newsMap.get(candidate.symbol) || []).total
+        calculateQuantScore(candidate, quoteMap.get(candidate.symbol), newsMap.get(candidate.symbol) || [], indicatorsMap.get(candidate.symbol)).total,
+        quoteMap.get(candidate.symbol),
+        indicatorsMap.get(candidate.symbol),
+        newsMap.get(candidate.symbol) || []
       ).adjustedScore,
     }))
-    .filter(({ candidate, adjustedScore }) => buildQuantChecks(candidate, quoteMap.get(candidate.symbol), adjustedScore, newsMap.get(candidate.symbol) || []).passed)
+    .filter(({ candidate, adjustedScore }) => buildQuantChecks(candidate, quoteMap.get(candidate.symbol), adjustedScore, newsMap.get(candidate.symbol) || [], indicatorsMap.get(candidate.symbol)).passed)
     .sort((a, b) => b.adjustedScore - a.adjustedScore)
     .slice(0, 5)
-    .map(({ candidate }, index) => mapCandidateToRecommendation(candidate, index + 1, option, basedAt, quoteMap.get(candidate.symbol), newsMap.get(candidate.symbol) || []))
+    .map(({ candidate }, index) => mapCandidateToRecommendation(candidate, index + 1, option, basedAt, quoteMap.get(candidate.symbol), newsMap.get(candidate.symbol) || [], indicatorsMap.get(candidate.symbol)))
 
   if (ranked.length === 0) {
     throw createRecommendationError(

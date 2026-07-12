@@ -172,6 +172,25 @@ export async function getStockNews(symbols) {
   return parseJsonUtf8(res, url)
 }
 
+export async function getStockIndicators(symbols) {
+  const cleanSymbols = (symbols || []).filter(Boolean)
+  if (cleanSymbols.length === 0) return []
+  const params = new URLSearchParams()
+  params.set('symbols', cleanSymbols.join(','))
+  const url = `${API_BASE}/stocks/indicators?${params.toString()}`
+  let res
+  try {
+    res = await fetchWithTimeout(url, { headers: { Accept: 'application/json;charset=UTF-8' } }, FETCH_TIMEOUT_MS)
+  } catch (e) {
+    const msg = e.name === 'AbortError'
+      ? `주식 지표 응답 없음 (${FETCH_TIMEOUT_MS / 1000}초). URL: ${url}`
+      : `주식 지표 연결 실패. URL: ${url} — ${e.message}`
+    throw new Error(msg)
+  }
+  if (!res.ok) throw new Error(`주식 지표 조회 실패 (${res.status}). URL: ${url}`)
+  return parseJsonUtf8(res, url)
+}
+
 export async function getStockProviderStatus() {
   const url = `${API_BASE}/stocks/provider-status`
   let res
