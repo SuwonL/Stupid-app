@@ -24,8 +24,9 @@ public class MemeService {
     private static final Logger log = LoggerFactory.getLogger(MemeService.class);
     private static final String GIPHY_SOURCE = "Giphy Trending API";
     private static volatile boolean loggedNoKey;
+    private static final int MEME_LIMIT = 20;
 
-    private static final String GIPHY_TRENDING_URL = "https://api.giphy.com/v1/gifs/trending?api_key={key}&limit=10&rating=pg-13";
+    private static final String GIPHY_TRENDING_URL = "https://api.giphy.com/v1/gifs/trending?api_key={key}&limit=" + MEME_LIMIT + "&rating=pg-13";
 
     private final RestTemplate restTemplate;
 
@@ -58,7 +59,7 @@ public class MemeService {
                     memes.add(meme);
                     rank++;
                 }
-                if (memes.size() >= 10) break;
+                if (memes.size() >= MEME_LIMIT) break;
             }
             return memes;
         } catch (Exception e) {
@@ -68,8 +69,11 @@ public class MemeService {
     }
 
     private MemeDto toMemeDto(Map<String, Object> item, int rank) {
-        String title = (String) item.get("title");
-        if (!hasText(title)) return null;
+        String rawTitle = (String) item.get("title");
+        if (!hasText(rawTitle)) return null;
+        // Giphy 제목은 보통 "... GIF"로 끝난다. 이 접미사가 붙은 채로 유튜브를 검색하면
+        // "GIF 파일"을 찾는 것처럼 인식되어 검색 결과가 0건이 되므로 term에서는 제거한다.
+        String title = stripGifSuffix(rawTitle);
         String altText = (String) item.get("alt_text");
         String thumbnailUrl = extractThumbnailUrl(item);
         return MemeDto.builder()
@@ -79,6 +83,14 @@ public class MemeService {
                 .thumbnailUrl(thumbnailUrl)
                 .source(GIPHY_SOURCE)
                 .build();
+    }
+
+    private String stripGifSuffix(String title) {
+        String trimmed = title.trim();
+        if (trimmed.regionMatches(true, trimmed.length() - 3, "GIF", 0, 3)) {
+            trimmed = trimmed.substring(0, trimmed.length() - 3).trim();
+        }
+        return hasText(trimmed) ? trimmed : title.trim();
     }
 
     @SuppressWarnings("unchecked")

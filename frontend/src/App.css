@@ -563,8 +563,48 @@
   white-space: pre-wrap; /* 여러 줄 진단 메시지 표시 */
 }
 
+.scroll-top-btn {
+  position: fixed;
+  right: 1.1rem;
+  bottom: max(1.1rem, env(safe-area-inset-bottom));
+  z-index: 90;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  box-shadow: var(--shadow-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  animation: cardFadeIn 0.2s ease;
+}
+.scroll-top-btn:hover {
+  background: var(--primary-hover);
+}
+
 .result-section {
   margin-top: 1rem;
+}
+.meme-video-section {
+  scroll-margin-top: 4rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  background: rgba(59, 130, 246, 0.06);
+  animation: memeSectionPop 0.35s ease;
+}
+@keyframes memeSectionPop {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .result-section-header {
   display: flex;
@@ -719,6 +759,27 @@
 .recipe-card.meme-card.selected {
   outline: 2px solid var(--primary);
   outline-offset: -2px;
+}
+.meme-card .card-body {
+  position: relative;
+  min-height: 96px;
+  padding-bottom: 1.7rem;
+}
+.meme-card .card-desc {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.meme-card .card-hint {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.6rem;
+  margin: 0;
 }
 .recipe-card.card:nth-child(1) { animation-delay: 0.02s; }
 .recipe-card.card:nth-child(2) { animation-delay: 0.04s; }

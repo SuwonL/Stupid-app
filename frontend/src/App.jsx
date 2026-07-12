@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
+import { ArrowUp } from 'lucide-react'
 import './App.css'
 import FridgePage from './pages/FridgePage'
 import CalendarPage from './pages/CalendarPage'
@@ -47,6 +48,14 @@ export default function App() {
   const version = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1'
   const deployCount = typeof __APP_DEPLOY_COUNT__ !== 'undefined' ? __APP_DEPLOY_COUNT__ : ''
 
+  const [showScrollTop, setShowScrollTop] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 400)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
+
   return (
     <div className="app-layout">
       <nav className="app-nav" aria-label="메인 메뉴">
@@ -61,7 +70,7 @@ export default function App() {
             자동 달력
           </NavLink>
           <NavLink to="/memes" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`} end>
-            인스타 밈
+            최신 밈
           </NavLink>
         </div>
         <div className="app-nav-right">
@@ -108,6 +117,18 @@ export default function App() {
           deployCount={deployCount}
           buildTime={buildTime}
         />
+      )}
+
+      {showScrollTop && (
+        <button
+          type="button"
+          className="scroll-top-btn"
+          onClick={scrollToTop}
+          aria-label="맨 위로 이동"
+          title="맨 위로"
+        >
+          <ArrowUp size={20} aria-hidden />
+        </button>
       )}
     </div>
   )

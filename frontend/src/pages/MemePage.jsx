@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getTrendingMemes, getMemeVideos } from '../api'
 
 export default function MemePage() {
@@ -12,6 +12,7 @@ export default function MemePage() {
   const [videosError, setVideosError] = useState(null)
 
   const [videoDialog, setVideoDialog] = useState(null)
+  const videoSectionRef = useRef(null)
 
   useEffect(() => {
     setMemesLoading(true)
@@ -21,6 +22,14 @@ export default function MemePage() {
       .catch((e) => setMemesError(e.message || '밈 목록을 불러오지 못했습니다.'))
       .finally(() => setMemesLoading(false))
   }, [])
+
+  // 밈을 클릭하면 결과 섹션이 화면 아래쪽에 새로 생기는데, 스크롤하지 않으면 눈에 안 띄어서
+  // 선택이 바뀔 때마다 결과 섹션으로 자동 스크롤한다.
+  useEffect(() => {
+    if (selectedMeme && videoSectionRef.current) {
+      videoSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [selectedMeme])
 
   const selectMeme = (meme) => {
     setSelectedMeme(meme)
@@ -39,12 +48,12 @@ export default function MemePage() {
   return (
     <div className="app">
       <header className="header">
-        <h1>인스타 최신밈</h1>
-        <p className="sub">Giphy 실시간 트렌딩 기준 인기 밈 10가지를 보여드려요.</p>
+        <h1>최신 밈</h1>
+        <p className="sub">Giphy 실시간 트렌딩 기준 인기 밈 20가지를 보여드려요.</p>
       </header>
 
       <section className="result-section">
-        <h2 className="section-title">최신 밈 10가지</h2>
+        <h2 className="section-title">최신 밈 20가지</h2>
         {memesLoading && (
           <p className="empty result-loading"><span className="spinner-inline" /> 불러오는 중…</p>
         )}
@@ -84,7 +93,7 @@ export default function MemePage() {
       </section>
 
       {selectedMeme && (
-        <section className="result-section">
+        <section className="result-section meme-video-section" ref={videoSectionRef}>
           <div className="recommend-group">
             <h3 className="recommend-subtitle">'{selectedMeme.term}' 관련 인기 영상</h3>
             {videosLoading && (
