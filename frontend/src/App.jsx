@@ -6,6 +6,7 @@ import FridgePage from './pages/FridgePage'
 import CalendarPage from './pages/CalendarPage'
 import StockPage from './pages/StockPage'
 import MemePage from './pages/MemePage'
+import ChildbirthChecklistPage from './pages/ChildbirthChecklistPage'
 import ProjectInfoModal from './components/ProjectInfoModal'
 
 const THEME_KEY = 'fridge-menu-theme'
@@ -72,6 +73,9 @@ export default function App() {
           <NavLink to="/memes" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`} end>
             최신 밈
           </NavLink>
+          <NavLink to="/childbirth-checklist" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`} end>
+            출산 준비물
+          </NavLink>
         </div>
         <div className="app-nav-right">
           <span className="app-nav-meta" title={`빌드: ${buildTime}`}>
@@ -107,6 +111,7 @@ export default function App() {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/stocks" element={<StockPage />} />
           <Route path="/memes" element={<MemePage />} />
+          <Route path="/childbirth-checklist" element={<ChildbirthChecklistPage />} />
         </Routes>
       </main>
 
