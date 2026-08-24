@@ -77,13 +77,17 @@ public class StockMarketService {
     }
 
     public List<StockNewsDto> getNews(List<String> symbols) {
+        // 주의: 예전에는 심볼 자체를 8개로, 합산 결과를 12건으로 잘랐다. 추천 후보가 8개보다 많으면
+        // 뒤쪽 심볼은 애초에 뉴스 조회 시도조차 되지 않아 "뉴스 있음" 게이트를 항상 통과 못 했고,
+        // 그 결과 추천 순위가 실제 시세와 무관하게 배열 앞쪽 종목으로 고정되는 원인이 됐다.
+        // 심볼별 조회 개수는 이미 각 프로바이더 호출에서 3건으로 제한되므로, 여기서는 후보 전체(최대 30개)가
+        // 빠짐없이 뉴스 조회를 시도하도록 심볼 제한만 다른 엔드포인트(getQuotes/getIndicators)와 맞춘다.
         List<StockNewsDto> news = symbols.stream()
                 .map(String::trim)
                 .filter(s -> !s.isBlank())
                 .distinct()
-                .limit(8)
+                .limit(30)
                 .flatMap(symbol -> getOfficialNewsForSymbol(symbol).stream())
-                .limit(12)
                 .toList();
         if (news.isEmpty()) {
             throw new IllegalStateException("정식 뉴스 API가 설정되지 않았거나 뉴스를 가져오지 못했습니다.");

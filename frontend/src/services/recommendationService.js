@@ -49,6 +49,10 @@ function createRecommendationId(code, timestamp) {
   return `${timestamp}-${code}`.replace(/[^a-zA-Z0-9-]/g, '')
 }
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
 function parseAmount(text) {
   const match = String(text).replace(/,/g, '').match(/-?\d+(\.\d+)?/)
   return match ? Number(match[0]) : null
@@ -116,7 +120,7 @@ function getOptionLabel(option) {
 
 function mapCandidateToRecommendation(candidate, rank, option, basedAt, quote = null, newsItems = [], indicators = null) {
   const quantScore = calculateQuantScore(candidate, quote, newsItems, indicators)
-  const feedback = applyFeedbackToRecommendationScore(candidate, quantScore.total, quote, indicators, newsItems)
+  const feedback = applyFeedbackToRecommendationScore(candidate, quantScore.rawTotal, quote, indicators, newsItems)
   const regionLabel = REGION_LABELS[candidate.region] || candidate.region
   const productLabel = PRODUCT_LABELS[candidate.productType] || candidate.productType
   const horizonLabel = HORIZON_LABELS[candidate.horizonType] || candidate.horizonType
@@ -166,34 +170,59 @@ function mapCandidateToRecommendation(candidate, rank, option, basedAt, quote = 
   }
 }
 
+// 점수 계산 원칙: 항목마다 "구간을 넘기면 만점"인 계단식 조건을 쓰면, 평소 등락폭이 크지 않은 날엔
+// 후보 대부분이 같은 만점을 받아 동점이 되고, 그 동점은 결국 배열에 적힌 순서로 갈린다 —
+// 이것이 "언제 돌려도 같은 종목만 추천되는" 현상의 실제 원인이었다. 그래서 모멘텀·거래량·리스크는
+// 실측값(등락률·거래량 변화율·이동평균 이격도)에 비례해 연속적으로 움직이도록 바꿨다.
 function calculateQuantScore(candidate, quote, newsItems, indicators) {
   const changePercent = quote?.changePercent
   const absChange = Math.abs(changePercent ?? 0)
-  const volumeScore = quote?.volume ? SCORE_WEIGHTS.volume : Math.round(SCORE_WEIGHTS.volume * 0.4)
+  const volumeChangeRate = indicators?.volumeChangeRate
+  const ma20DeviationPercent = indicators?.ma20DeviationPercent
+
+  const officialQuoteScore = quote && !quote.error && quote.price != null ? SCORE_WEIGHTS.officialQuote : 0
+
+  // 뉴스 건수(최대 3건)에 비례. 있고 없고만 보던 기존 로직은 뉴스가 걸린 후보 전부를 동점 처리했다.
+  const officialNewsScore = newsItems.length > 0
+    ? clamp(SCORE_WEIGHTS.officialNews * (newsItems.length / 3), 0, SCORE_WEIGHTS.officialNews)
+    : 0
+
+  // 등락률이 없으면 0점. 있으면 +4% 부근(적당한 상승 모멘텀)을 정점으로 양방향으로 연속 감점 —
+  // 예전처럼 "8% 이내면 전부 만점"인 평평한 구간이 없어 종목마다 실제 등락률 차이가 그대로 점수 차이로 남는다.
   const momentumScore = changePercent == null
     ? 0
-    : Math.max(0, SCORE_WEIGHTS.momentum - Math.max(0, absChange - 8) * 2)
-  const officialQuoteScore = quote && !quote.error && quote.price != null ? SCORE_WEIGHTS.officialQuote : 0
-  const officialNewsScore = newsItems.length > 0 ? SCORE_WEIGHTS.officialNews : 0
-  // overheating은 20일 이동평균 대비 실제 괴리율로 백엔드가 계산한 값. 지표를 못 가져왔으면(indicators 없음/error)
-  // 과열 여부를 임의로 단정하지 않고 감점하지 않는다.
-  const riskScore = indicators?.overheating === true
-    ? Math.max(0, SCORE_WEIGHTS.risk - 10)
-    : SCORE_WEIGHTS.risk
+    : clamp(SCORE_WEIGHTS.momentum - Math.abs(absChange - 4) * 1.6, 0, SCORE_WEIGHTS.momentum)
+
+  // 거래량 자체 존재 여부(사실상 항상 true)가 아니라, 20일 평균 대비 실제 거래량 변화율로 채점.
+  // 평균 대비 그대로(0%)면 절반 점수, +100%면 만점, 감소하면 절반 아래로 내려간다.
+  const volumeScore = volumeChangeRate == null
+    ? Math.round(SCORE_WEIGHTS.volume * 0.4)
+    : clamp(SCORE_WEIGHTS.volume / 2 + (volumeChangeRate / 100) * (SCORE_WEIGHTS.volume / 2), 0, SCORE_WEIGHTS.volume)
+
+  // 이동평균 이격도(실측)가 클수록 연속적으로 감점. 과거엔 15% 초과 여부(boolean)만 보고 -10점 고정이라
+  // 이격도가 6%든 14%든 동일하게 만점 처리됐다. 과열 여부(overheating) 자체는 아래 체크리스트에서
+  // 여전히 하드 게이트로 쓰되, 점수는 이격도 크기에 비례해 움직이게 한다.
+  const riskScore = ma20DeviationPercent == null
+    ? SCORE_WEIGHTS.risk
+    : clamp(SCORE_WEIGHTS.risk - Math.max(0, ma20DeviationPercent - 5) * 1.2, 0, SCORE_WEIGHTS.risk)
+
   const strategyFitScore = candidate.productType === 'leveraged' && candidate.horizonType === 'longterm'
     ? 0
     : SCORE_WEIGHTS.strategyFit
-  const total = Math.round(officialQuoteScore + officialNewsScore + momentumScore + volumeScore + riskScore + strategyFitScore)
+
+  const rawTotal = officialQuoteScore + officialNewsScore + momentumScore + volumeScore + riskScore + strategyFitScore
+  const total = Math.round(rawTotal)
 
   return {
     total,
+    rawTotal,
     weights: SCORE_WEIGHTS,
     breakdown: [
       { label: '공식 시세 검증', score: officialQuoteScore, max: SCORE_WEIGHTS.officialQuote },
-      { label: '공식 뉴스 확인', score: officialNewsScore, max: SCORE_WEIGHTS.officialNews },
+      { label: '공식 뉴스 확인', score: Math.round(officialNewsScore), max: SCORE_WEIGHTS.officialNews },
       { label: '가격 모멘텀', score: Math.round(momentumScore), max: SCORE_WEIGHTS.momentum },
-      { label: '거래량 확인', score: volumeScore, max: SCORE_WEIGHTS.volume },
-      { label: '리스크 감점 반영', score: riskScore, max: SCORE_WEIGHTS.risk },
+      { label: '거래량 확인', score: Math.round(volumeScore), max: SCORE_WEIGHTS.volume },
+      { label: '리스크 감점 반영', score: Math.round(riskScore), max: SCORE_WEIGHTS.risk },
       { label: '투자 기간 적합성', score: strategyFitScore, max: SCORE_WEIGHTS.strategyFit },
     ],
   }
@@ -229,7 +258,11 @@ export function applyFeedbackToRecommendationScore(candidate, baseScore, quote =
   }
 
   return {
+    // 순위 정렬은 rawAdjustedScore(소수점 유지)로 하고, 화면 표시용 adjustedScore만 반올림한다.
+    // baseScore가 이미 정수로 반올림되어 있으면(예전 호출부) 여기서도 정수만 나오지만,
+    // calculateQuantScore의 rawTotal을 baseScore로 넘기면 동점이 크게 줄어든다.
     adjustedScore: Math.max(0, Math.round(adjustedScore)),
+    rawAdjustedScore: Math.max(0, adjustedScore),
     feedbackReasons: reasons,
   }
 }
@@ -338,20 +371,34 @@ export async function getCurrentRecommendations(option = { marketScope: 'all', p
   )
   const ranked = filtered
     .filter((candidate) => quoteMap.has(candidate.symbol) && (newsMap.get(candidate.symbol)?.length || 0) > 0)
-    .map((candidate) => ({
-      candidate,
-      adjustedScore: applyFeedbackToRecommendationScore(
+    .map((candidate) => {
+      const quote = quoteMap.get(candidate.symbol)
+      const indicators = indicatorsMap.get(candidate.symbol)
+      const candidateNews = newsMap.get(candidate.symbol) || []
+      const feedback = applyFeedbackToRecommendationScore(
         candidate,
-        calculateQuantScore(candidate, quoteMap.get(candidate.symbol), newsMap.get(candidate.symbol) || [], indicatorsMap.get(candidate.symbol)).total,
-        quoteMap.get(candidate.symbol),
-        indicatorsMap.get(candidate.symbol),
-        newsMap.get(candidate.symbol) || []
-      ).adjustedScore,
-    }))
-    .filter(({ candidate, adjustedScore }) => buildQuantChecks(candidate, quoteMap.get(candidate.symbol), adjustedScore, newsMap.get(candidate.symbol) || [], indicatorsMap.get(candidate.symbol)).passed)
-    .sort((a, b) => b.adjustedScore - a.adjustedScore)
+        calculateQuantScore(candidate, quote, candidateNews, indicators).rawTotal,
+        quote,
+        indicators,
+        candidateNews
+      )
+      return { candidate, quote, indicators, candidateNews, adjustedScore: feedback.adjustedScore, rawAdjustedScore: feedback.rawAdjustedScore }
+    })
+    .filter(({ candidate, quote, adjustedScore, candidateNews, indicators }) =>
+      buildQuantChecks(candidate, quote, adjustedScore, candidateNews, indicators).passed
+    )
+    // 1순위는 소수점까지 유지한 실측 기반 점수(rawAdjustedScore) — 동점 확률이 거의 없다.
+    // 그래도 남는 동점은 후보 배열 순서가 아니라, 그날의 실측 등락률·거래량 변화율 크기로 가른다.
+    .sort((a, b) => {
+      if (b.rawAdjustedScore !== a.rawAdjustedScore) return b.rawAdjustedScore - a.rawAdjustedScore
+      const changeDiff = Math.abs(b.quote?.changePercent ?? 0) - Math.abs(a.quote?.changePercent ?? 0)
+      if (changeDiff !== 0) return changeDiff
+      return Math.abs(b.indicators?.volumeChangeRate ?? 0) - Math.abs(a.indicators?.volumeChangeRate ?? 0)
+    })
     .slice(0, 5)
-    .map(({ candidate }, index) => mapCandidateToRecommendation(candidate, index + 1, option, basedAt, quoteMap.get(candidate.symbol), newsMap.get(candidate.symbol) || [], indicatorsMap.get(candidate.symbol)))
+    .map(({ candidate, quote, candidateNews, indicators }, index) =>
+      mapCandidateToRecommendation(candidate, index + 1, option, basedAt, quote, candidateNews, indicators)
+    )
 
   if (ranked.length === 0) {
     throw createRecommendationError(
