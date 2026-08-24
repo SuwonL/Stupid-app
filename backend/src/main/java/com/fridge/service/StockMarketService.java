@@ -3,6 +3,7 @@ package com.fridge.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fridge.dto.StockIndicatorsDto;
 import com.fridge.dto.StockMarketStatusDto;
+import com.fridge.dto.StockMoverDto;
 import com.fridge.dto.StockNewsDto;
 import com.fridge.dto.StockProviderStatusDto;
 import com.fridge.dto.StockQuoteDto;
@@ -115,6 +116,109 @@ public class StockMarketService {
                 .limit(50)
                 .flatMap(symbol -> getOfficialNewsForSymbol(symbol, nameBySymbol.get(symbol)).stream())
                 .toList();
+    }
+
+    /**
+     * "오르는 종목"을 정해진 몇 개 후보 중에서 고르는 게 아니라, 그날 실제로 시장 전체(코스피+코스닥,
+     * 미국 증시)에서 등락률 상위인 종목을 공식 API로 직접 스캔해서 가져온다. 국내는 KIS 등락률 순위
+     * API, 해외는 Polygon 상승률 상위(top gainers) 스냅샷을 쓴다. 한쪽 프로바이더가 실패해도
+     * (키 미설정, 응답 실패 등) 나머지 결과는 그대로 반환한다 — 실패했다고 전체를 막지 않는다.
+     */
+    public List<StockMoverDto> getMovers(String region, int limit) {
+        boolean wantDomestic = !"overseas".equals(region);
+        boolean wantOverseas = !"domestic".equals(region);
+        List<StockMoverDto> result = new ArrayList<>();
+        if (wantDomestic) result.addAll(getKisMovers(limit));
+        if (wantOverseas) result.addAll(getPolygonMovers(limit));
+        return result.stream()
+                .filter(m -> m.getError() == null)
+                .sorted((a, b) -> {
+                    double ac = a.getChangePercent() == null ? Double.NEGATIVE_INFINITY : a.getChangePercent();
+                    double bc = b.getChangePercent() == null ? Double.NEGATIVE_INFINITY : b.getChangePercent();
+                    return Double.compare(bc, ac);
+                })
+                .limit(limit)
+                .toList();
+    }
+
+    // 코스피(0001)·코스닥(1001)을 각각 조회해 합친다 — KIS 등락률 순위 API는 시장을 나눠서 요청해야 한다.
+    private List<StockMoverDto> getKisMovers(int limit) {
+        if (!hasKisConfig()) return List.of();
+        List<StockMoverDto> movers = new ArrayList<>();
+        for (String marketCode : List.of("0001", "1001")) {
+            movers.addAll(getKisMoversForMarket(marketCode, limit));
+        }
+        return movers;
+    }
+
+    private List<StockMoverDto> getKisMoversForMarket(String marketCode, int limit) {
+        try {
+            URI uri = URI.create(kisBaseUrl + "/uapi/domestic-stock/v1/ranking/fluctuation"
+                    + "?FID_COND_MRKT_DIV_CODE=J&FID_COND_SCR_DIV_CODE=20170"
+                    + "&FID_INPUT_ISCD=" + marketCode
+                    + "&FID_RANK_SORT_CLS_CODE=0&FID_INPUT_CNT_1=0&FID_PRC_CLS_CODE=0"
+                    + "&FID_INPUT_PRICE_1=&FID_INPUT_PRICE_2=&FID_VOL_CNT=&FID_TRGT_CLS_CODE=0"
+                    + "&FID_TRGT_EXLS_CLS_CODE=0&FID_DIV_CLS_CODE=0&FID_RSFL_RATE1=&FID_RSFL_RATE2=");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(getKisAccessToken());
+            headers.set("appkey", kisAppKey);
+            headers.set("appsecret", kisAppSecret);
+            headers.set("tr_id", "FHPST01700000");
+            JsonNode root = exchangeJson(uri, headers);
+            return toList(root.path("output")).stream()
+                    .limit(limit)
+                    .map(item -> {
+                        String code = item.path("stck_shrn_iscd").asText(null);
+                        Double price = parseDouble(item.path("stck_prpr").asText(null));
+                        Double changePercent = parseDouble(item.path("prdy_ctrt").asText(null));
+                        if (code == null || price == null || changePercent == null) return null;
+                        return StockMoverDto.builder()
+                                .symbol(code) // 국내 6자리 코드는 그 자체로 isDomesticSymbol()에 매칭되는 심볼
+                                .name(item.path("hts_kor_isnm").asText(code))
+                                .region("domestic")
+                                .price(price)
+                                .changePercent(changePercent)
+                                .volume(parseLong(item.path("acml_vol").asText(null)))
+                                .source(KIS_SOURCE)
+                                .build();
+                    })
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+        } catch (Exception e) {
+            // 필드명이 실제 KIS 응답과 다르거나 API 정책이 바뀌었을 수 있다 — 실패해도 예외를 위로 던지지 않고
+            // 그냥 빈 결과로 처리한다(fail-closed). 큐레이션된 후보 목록은 이 실패와 무관하게 계속 동작한다.
+            return List.of();
+        }
+    }
+
+    private List<StockMoverDto> getPolygonMovers(int limit) {
+        if (!hasText(polygonApiKey)) return List.of();
+        try {
+            URI uri = URI.create("https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/gainers?apiKey=" + encode(polygonApiKey));
+            JsonNode root = exchangeJson(uri, new HttpHeaders());
+            return toList(root.path("tickers")).stream()
+                    .limit(limit)
+                    .map(item -> {
+                        String symbol = item.path("ticker").asText(null);
+                        Double price = readDouble(item.path("day").path("c"));
+                        if (price == null || price == 0) price = readDouble(item.path("min").path("c"));
+                        Double changePercent = readDouble(item.path("todaysChangePerc"));
+                        if (symbol == null || price == null || changePercent == null) return null;
+                        return StockMoverDto.builder()
+                                .symbol(symbol)
+                                .name(symbol)
+                                .region("overseas")
+                                .price(round(price))
+                                .changePercent(round(changePercent))
+                                .volume(readLong(item.path("day").path("v")))
+                                .source(POLYGON_SOURCE)
+                                .build();
+                    })
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     public StockProviderStatusDto getProviderStatus() {

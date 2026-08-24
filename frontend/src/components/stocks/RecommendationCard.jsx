@@ -63,7 +63,14 @@ export default function RecommendationCard({ recommendation }) {
       >
         <div className="recommendation-card-head">
           <div className="recommendation-rank">TOP {recommendation.rank}</div>
-          <span className="recommendation-market">{recommendation.marketLabel}</span>
+          <div className="recommendation-card-head-right">
+            {recommendation.isDynamicMover && (
+              <span className="recommendation-live-scan" title="사전에 정해둔 후보 목록이 아니라 오늘 시장 전체 스캔에서 발견된 종목입니다">
+                실시간 스캔 발견
+              </span>
+            )}
+            <span className="recommendation-market">{recommendation.marketLabel}</span>
+          </div>
         </div>
 
         <div className="recommendation-main">

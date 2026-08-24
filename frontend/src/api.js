@@ -197,6 +197,23 @@ export async function getStockIndicators(symbols) {
   return parseJsonUtf8(res, url)
 }
 
+// 큐레이션된 고정 후보 목록이 아니라, 시장 전체에서 그날 실제로 등락률이 높은 종목을 실시간으로
+// 스캔해서 가져온다. region: 'all' | 'domestic' | 'overseas'. 프로바이더 실패 시 빈 배열(정상 동작,
+// 큐레이션 후보만으로 계속 진행) — 에러를 던지지 않는다.
+export async function getStockMovers(region = 'all', limit = 30) {
+  const params = new URLSearchParams()
+  params.set('region', region)
+  params.set('limit', String(limit))
+  const url = `${API_BASE}/stocks/movers?${params.toString()}`
+  try {
+    const res = await fetchWithTimeout(url, { headers: { Accept: 'application/json;charset=UTF-8' } }, FETCH_TIMEOUT_MS)
+    if (!res.ok) return []
+    return await parseJsonUtf8(res, url)
+  } catch {
+    return []
+  }
+}
+
 export async function getStockProviderStatus() {
   const url = `${API_BASE}/stocks/provider-status`
   let res

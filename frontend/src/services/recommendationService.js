@@ -8,7 +8,7 @@ import {
   mockRecommendationCandidates,
 } from '../data/mockRecommendations'
 import { mockFeedbackRules } from '../data/mockEvaluationResults'
-import { getStockIndicators, getStockNews, getStockProviderStatus, getStockQuotes } from '../api'
+import { getStockIndicators, getStockMovers, getStockNews, getStockProviderStatus, getStockQuotes } from '../api'
 
 const SCORE_WEIGHTS = {
   officialQuote: 25,
@@ -170,6 +170,7 @@ function mapCandidateToRecommendation(candidate, rank, option, basedAt, quote = 
     matchTier,
     filterRelaxed: matchTier > 0,
     filterRelaxedNote: MATCH_TIER_LABELS[matchTier] || null,
+    isDynamicMover: Boolean(candidate.isDynamicMover),
   }
 }
 
@@ -192,9 +193,16 @@ function calculateQuantScore(candidate, quote, newsItems, indicators) {
 
   // 등락률이 없으면 0점. 있으면 +4% 부근(적당한 상승 모멘텀)을 정점으로 양방향으로 연속 감점 —
   // 예전처럼 "8% 이내면 전부 만점"인 평평한 구간이 없어 종목마다 실제 등락률 차이가 그대로 점수 차이로 남는다.
+  // '급등 가능주'는 전략 자체가 큰 모멘텀을 쫓는 것이므로 정점을 +12%로 훨씬 뒤로 두고 완만하게 감점한다.
+  // 나머지(일반주식/ETF 등)는 과도하게 이미 오른 종목을 피한다는 의미로 +4% 부근을 정점으로 둔다.
+  // 이 구분이 없으면, 실시간 스캔으로 찾은 진짜 급등주가 "너무 많이 올랐다"는 이유로 오히려 감점당해
+  // 정작 급등 가능주 카테고리에서 걸러지는 모순이 생긴다.
+  const isSurgeStrategy = candidate.productType === 'surge'
   const momentumScore = changePercent == null
     ? 0
-    : clamp(SCORE_WEIGHTS.momentum - Math.abs(absChange - 4) * 1.6, 0, SCORE_WEIGHTS.momentum)
+    : isSurgeStrategy
+      ? clamp(SCORE_WEIGHTS.momentum - Math.max(0, 12 - absChange) * 1.2 - Math.max(0, absChange - 12) * 0.8, 0, SCORE_WEIGHTS.momentum)
+      : clamp(SCORE_WEIGHTS.momentum - Math.abs(absChange - 4) * 1.6, 0, SCORE_WEIGHTS.momentum)
 
   // 거래량 자체 존재 여부(사실상 항상 true)가 아니라, 20일 평균 대비 실제 거래량 변화율로 채점.
   // 평균 대비 그대로(0%)면 절반 점수, +100%면 만점, 감소하면 절반 아래로 내려간다.
@@ -347,6 +355,54 @@ const MATCH_TIER_LABELS = {
   2: '선택하신 상세옵션·투자 기간과는 다르지만 조건을 넓혀 포함한 후보입니다.',
 }
 
+// 큐레이션된 32개 종목만으로는 "시장 전체에서 오르는 종목을 찾아준다"는 약속을 지킬 수 없다 —
+// 그래서 국내(코스피+코스닥)·해외 증시 전체를 실시간으로 스캔한 등락률 상위 종목(getStockMovers)도
+// 후보에 합친다. 이 종목들은 공식 API가 그날 실제로 찾아낸 결과이지, 미리 정해둔 목록이 아니다.
+// 다만 스캔 결과에는 뉴스·과거 지표까지 개별 조회하면 API 호출량이 너무 커지므로(무료 API 쿼터 문제),
+// 시세만 그대로 쓰고 뉴스·기술 지표는 비워둔다 — '공식 뉴스'는 이미 참고 신호일 뿐이라 문제없다.
+function moverToCandidate(mover) {
+  const isDomestic = mover.region === 'domestic'
+  return {
+    id: `mover-${mover.symbol}`,
+    name: mover.name || mover.symbol,
+    code: mover.symbol,
+    symbol: mover.symbol,
+    region: mover.region,
+    productType: 'surge',
+    horizonType: 'daytrade',
+    holdingPeriod: '당일~3거래일',
+    tradeStyle: '시장 전체 스캔에서 오늘 등락률 상위로 포착된 종목을 노리는 공격형 단기 매매',
+    marketType: mover.region,
+    currentPrice: mover.price,
+    score: null,
+    reason: '오늘 실시간 등락률 상위 종목으로 공식 API 스캔에서 확인됐습니다. (사전 큐레이션 종목이 아님)',
+    buyRange: formatAmount(mover.price * 0.985, !isDomestic) + ' ~ ' + formatAmount(mover.price, !isDomestic),
+    takeProfitRange: formatAmount(mover.price * 1.08, !isDomestic) + ' ~ ' + formatAmount(mover.price * 1.15, !isDomestic),
+    stopLossRange: formatAmount(mover.price * 0.95, !isDomestic) + ' 이탈',
+    riskFactors: ['실시간 스캔 종목이라 재무·이슈 배경이 확인되지 않음', '변동성 매우 높음', '손절 기준 필수'],
+    criteria: ['실시간 등락률 상위(시장 전체 스캔)', '거래량 변화', '리스크'],
+    isDynamicMover: true,
+  }
+}
+
+// 접미사(.KS/.KQ) 유무와 무관하게 같은 종목이면 하나로 합친다 — 큐레이션 목록에 이미 있는 종목이
+// 오늘의 급등 스캔에도 걸렸을 때 카드가 중복으로 뜨지 않도록.
+function symbolDedupeKey(symbol) {
+  return String(symbol || '').replace(/\.(KS|KQ)$/, '')
+}
+
+function dedupeCandidatesBySymbol(candidates) {
+  const seen = new Set()
+  const result = []
+  for (const candidate of candidates) {
+    const key = symbolDedupeKey(candidate.symbol)
+    if (seen.has(key)) continue
+    seen.add(key)
+    result.push(candidate)
+  }
+  return result
+}
+
 export async function getCurrentRecommendations(option = { marketScope: 'all', productType: 'all', horizonType: 'all' }) {
   await delay(450)
 
@@ -377,11 +433,15 @@ export async function getCurrentRecommendations(option = { marketScope: 'all', p
   let quotes
   let newsItems
   let indicatorsList
+  let movers
   try {
-    ;[quotes, newsItems, indicatorsList] = await Promise.all([
+    ;[quotes, newsItems, indicatorsList, movers] = await Promise.all([
       getStockQuotes(symbols),
       getStockNews(symbols, names),
       getStockIndicators(symbols),
+      // 시장 전체 실시간 스캔. 프로바이더가 실패해도 빈 배열만 돌아오고 예외를 던지지 않으므로
+      // (getStockMovers 구현 참고) 큐레이션 후보 검증에는 영향이 없다.
+      getStockMovers(normalized.marketScope),
     ])
   } catch (e) {
     throw createRecommendationError(
@@ -400,8 +460,35 @@ export async function getCurrentRecommendations(option = { marketScope: 'all', p
       .filter((item) => item && !item.error)
       .map((item) => [item.symbol, item])
   )
+
+  // 실시간 스캔 결과(movers)는 상세옵션이 '전체' 또는 '급등 가능주'일 때만 후보에 합친다.
+  // 예를 들어 사용자가 '레버리지 ETF'를 골랐는데 부족하다고 아무 급등주나 대신 채우면 상품 성격이
+  // 완전히 달라져 오히려 혼란스럽다 — 조건 완화(matchTier)는 같은 상품군 안에서만 의미가 있다.
+  const includeMovers = normalized.productType === 'all' || normalized.productType === 'surge'
+  const moverCandidates = includeMovers
+    ? (movers || []).filter((m) => m && !m.error && m.price != null).map(moverToCandidate)
+    : []
+  const combinedCandidates = dedupeCandidatesBySymbol([...regionCandidates, ...moverCandidates])
+  // 큐레이션 종목은 getStockQuotes로 받은 실측 시세를 그대로 쓰고, 스캔으로만 발견된 종목은
+  // 스캔 응답의 시세를 quoteMap에 채워 넣는다 — 둘 다 결국 공식 API에서 나온 실측값이다.
+  for (const mover of moverCandidates.length ? movers : []) {
+    if (!mover || mover.error || mover.price == null) continue
+    if (quoteMap.has(mover.symbol)) continue
+    quoteMap.set(mover.symbol, {
+      symbol: mover.symbol,
+      name: mover.name,
+      price: mover.price,
+      previousClose: null,
+      change: null,
+      changePercent: mover.changePercent ?? null,
+      volume: mover.volume ?? null,
+      currency: mover.region === 'domestic' ? 'KRW' : 'USD',
+      source: mover.source,
+    })
+  }
+
   const { productType, horizonType } = normalized
-  const verified = regionCandidates
+  const verified = combinedCandidates
     .filter((candidate) => quoteMap.has(candidate.symbol))
     .map((candidate) => {
       const quote = quoteMap.get(candidate.symbol)

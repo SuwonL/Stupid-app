@@ -600,6 +600,24 @@
   color: var(--text-secondary);
 }
 
+.recommendation-card-head-right {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.recommendation-live-scan {
+  flex-shrink: 0;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  background: rgba(59, 130, 246, 0.14);
+  color: var(--primary);
+  white-space: nowrap;
+}
+
 .recommendation-main {
   align-items: flex-start;
   margin-top: 0.5rem;
