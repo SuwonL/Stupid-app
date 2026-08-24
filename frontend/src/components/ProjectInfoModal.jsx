@@ -8,7 +8,7 @@ const PROJECT_INDEX = [
   { id: 'calendar', name: '자동 달력', path: '/calendar', desc: '일정 추가·수정·삭제, 스타일 선택. 화면 캡처로 저장해 사용' },
   { id: 'stocks', name: '주식 추천', path: '/stocks', desc: '실시간 추천 TOP5(펼치기/접기), 주식현황, 오늘의 주식 지식 하위 메뉴' },
   { id: 'memes', name: '최신 밈', path: '/memes', desc: 'Giphy 실시간 트렌딩 밈 20가지, 클릭 시 관련 인기 영상' },
-  { id: 'childbirth-checklist', name: '출산 준비물', path: '/childbirth-checklist', desc: '카테고리별 출산 준비물 체크리스트, 체크 상태·추가 항목을 브라우저에 자동 저장' },
+  // 출산 준비물(/childbirth-checklist)은 메뉴에서 임시로 숨김. 라우트·페이지는 유지.
 ]
 
 const PROJECT_STRUCTURE = {

@@ -73,9 +73,7 @@ export default function App() {
           <NavLink to="/memes" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`} end>
             최신 밈
           </NavLink>
-          <NavLink to="/childbirth-checklist" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`} end>
-            출산 준비물
-          </NavLink>
+          {/* 출산 준비물 메뉴는 임시로 숨김 (라우트/페이지는 유지) */}
         </div>
         <div className="app-nav-right">
           <span className="app-nav-meta" title={`빌드: ${buildTime}`}>
