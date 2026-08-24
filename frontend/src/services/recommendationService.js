@@ -118,7 +118,7 @@ function getOptionLabel(option) {
   return `${marketLabel} · ${productLabel} · ${horizonLabel}`
 }
 
-function mapCandidateToRecommendation(candidate, rank, option, basedAt, quote = null, newsItems = [], indicators = null) {
+function mapCandidateToRecommendation(candidate, rank, option, basedAt, quote = null, newsItems = [], indicators = null, matchTier = 0) {
   const quantScore = calculateQuantScore(candidate, quote, newsItems, indicators)
   const feedback = applyFeedbackToRecommendationScore(candidate, quantScore.rawTotal, quote, indicators, newsItems)
   const regionLabel = REGION_LABELS[candidate.region] || candidate.region
@@ -167,6 +167,9 @@ function mapCandidateToRecommendation(candidate, rank, option, basedAt, quote = 
     selectedOptionLabel: getOptionLabel(option),
     feedbackReasons: feedback.feedbackReasons,
     sourceCandidateId: candidate.id,
+    matchTier,
+    filterRelaxed: matchTier > 0,
+    filterRelaxedNote: MATCH_TIER_LABELS[matchTier] || null,
   }
 }
 
@@ -267,6 +270,10 @@ export function applyFeedbackToRecommendationScore(candidate, baseScore, quote =
   }
 }
 
+// '공식 뉴스'는 필수 통과 조건(required)이 아니라 참고 신호다. 예전엔 이게 필수라서, 뉴스 제공사가
+// 특정 종목(주로 해외)에서 기사를 못 찾으면(제공사 쿼터·커버리지 문제여도) 그 종목은 시세가 멀쩡해도
+// 영원히 추천 후보에서 빠졌다 — "일반주식으로 하면 삼성전자·NAVER만 나온다"는 문제의 실제 원인.
+// 시세(가격) 자체는 계속 필수 조건으로 남긴다 — 가격을 모르는 종목을 추천할 수는 없다.
 function buildQuantChecks(candidate, quote, score, newsItems = [], indicators = null) {
   const overheating = indicators?.overheating
   const checks = [
@@ -274,30 +281,35 @@ function buildQuantChecks(candidate, quote, score, newsItems = [], indicators = 
       label: '공식 시세',
       passed: Boolean(quote && !quote.error && quote.price != null),
       detail: quote?.source || '공식 API 미확인',
+      required: true,
     },
     {
-      label: '공식 뉴스',
+      label: '공식 뉴스 (참고)',
       passed: newsItems.length > 0,
-      detail: newsItems.length > 0 ? `${newsItems.length}건` : '공식 뉴스 미확인',
+      detail: newsItems.length > 0 ? `${newsItems.length}건` : '공식 뉴스 미확인 — 점수에는 반영되지만 추천 여부를 막지는 않음',
+      required: false,
     },
     {
       label: '전일 대비 변화율',
       passed: quote?.changePercent != null && Math.abs(quote.changePercent) <= 20,
       detail: quote?.changePercent == null ? '등락률 없음' : `${quote.changePercent}%`,
+      required: true,
     },
     {
       label: '리스크 보정 점수',
       passed: score >= 70,
       detail: `${score}점`,
+      required: true,
     },
     {
       label: '과열 점검 (20일 이평 이격도 실측)',
       passed: !(overheating === true && quote?.changePercent >= 5),
       detail: overheating == null ? '과거 시세 미확인' : overheating ? '과열 신호 있음' : '과열 신호 낮음',
+      required: true,
     },
   ]
   return {
-    passed: checks.every((item) => item.passed),
+    passed: checks.filter((item) => item.required).every((item) => item.passed),
     checks,
   }
 }
@@ -311,14 +323,28 @@ function groupNewsBySymbol(newsItems) {
   }, new Map())
 }
 
-function filterCandidates(option) {
-  const { marketScope, productType, horizonType } = normalizeOption(option)
-  return mockRecommendationCandidates.filter((item) => {
-    const matchesMarket = marketScope === 'all' || item.region === marketScope
-    const matchesProduct = productType === 'all' || item.productType === productType
-    const matchesHorizon = horizonType === 'all' || item.horizonType === horizonType
-    return matchesMarket && matchesProduct && matchesHorizon
-  })
+// 시장(국내/해외)만 우선 적용해 후보군을 뽑는다. 상세옵션·투자기간까지 한번에 걸러버리면
+// 후보 풀이 너무 좁아져("일반주식"만 4개뿐이던 것처럼) 조건에 맞는 게 5개가 안 될 수 있다.
+// 시장은 통화·거래소가 달라 결과가 섞이면 사용자가 혼란스러우니 유일하게 항상 지키는 조건으로 두고,
+// 상세옵션·투자기간은 아래 matchTier로 "우선순위"로만 반영해 부족하면 넓혀서 채운다.
+function candidatesForRegion(marketScope) {
+  return mockRecommendationCandidates.filter((item) => marketScope === 'all' || item.region === marketScope)
+}
+
+// 0 = 상세옵션·투자기간까지 정확히 일치, 1 = 상세옵션만 일치(투자기간 완화), 2 = 시장만 일치(둘 다 완화).
+// 정렬 시 tier가 먼저 오고, 같은 tier 안에서는 점수 순으로 정렬되므로 정확히 일치하는 후보가 항상 우선한다.
+function matchTierFor(candidate, productType, horizonType) {
+  const matchesProduct = productType === 'all' || candidate.productType === productType
+  const matchesHorizon = horizonType === 'all' || candidate.horizonType === horizonType
+  if (matchesProduct && matchesHorizon) return 0
+  if (matchesProduct) return 1
+  return 2
+}
+
+const MATCH_TIER_LABELS = {
+  0: null,
+  1: '선택하신 투자 기간과는 다르지만 조건을 넓혀 포함한 후보입니다.',
+  2: '선택하신 상세옵션·투자 기간과는 다르지만 조건을 넓혀 포함한 후보입니다.',
 }
 
 export async function getCurrentRecommendations(option = { marketScope: 'all', productType: 'all', horizonType: 'all' }) {
@@ -326,7 +352,9 @@ export async function getCurrentRecommendations(option = { marketScope: 'all', p
 
   const basedAt = new Date()
   const normalized = normalizeOption(option)
-  const filtered = filterCandidates(option)
+  // 상세옵션·투자기간이 아니라 "시장"만으로 먼저 후보군을 뽑는다 — 이 후보군 안에서 정확히 일치하는
+  // 후보를 우선 랭킹하고, 5개가 안 채워지면 같은 시장 안에서 조건을 넓혀 채운다(아래 matchTierFor).
+  const regionCandidates = candidatesForRegion(normalized.marketScope)
   let providerStatus
   try {
     providerStatus = await getStockProviderStatus()
@@ -343,7 +371,7 @@ export async function getCurrentRecommendations(option = { marketScope: 'all', p
     )
   }
   // symbols/names는 반드시 같은 candidate 집합에서 같은 순서로 뽑아야 백엔드에서 1:1로 대응된다.
-  const symbolCandidates = filtered.filter((candidate) => candidate.symbol)
+  const symbolCandidates = regionCandidates.filter((candidate) => candidate.symbol)
   const symbols = symbolCandidates.map((candidate) => candidate.symbol)
   const names = symbolCandidates.map((candidate) => candidate.name)
   let quotes
@@ -372,8 +400,9 @@ export async function getCurrentRecommendations(option = { marketScope: 'all', p
       .filter((item) => item && !item.error)
       .map((item) => [item.symbol, item])
   )
-  const ranked = filtered
-    .filter((candidate) => quoteMap.has(candidate.symbol) && (newsMap.get(candidate.symbol)?.length || 0) > 0)
+  const { productType, horizonType } = normalized
+  const verified = regionCandidates
+    .filter((candidate) => quoteMap.has(candidate.symbol))
     .map((candidate) => {
       const quote = quoteMap.get(candidate.symbol)
       const indicators = indicatorsMap.get(candidate.symbol)
@@ -385,28 +414,42 @@ export async function getCurrentRecommendations(option = { marketScope: 'all', p
         indicators,
         candidateNews
       )
-      return { candidate, quote, indicators, candidateNews, adjustedScore: feedback.adjustedScore, rawAdjustedScore: feedback.rawAdjustedScore }
+      return {
+        candidate,
+        quote,
+        indicators,
+        candidateNews,
+        adjustedScore: feedback.adjustedScore,
+        rawAdjustedScore: feedback.rawAdjustedScore,
+        matchTier: matchTierFor(candidate, productType, horizonType),
+      }
     })
     .filter(({ candidate, quote, adjustedScore, candidateNews, indicators }) =>
       buildQuantChecks(candidate, quote, adjustedScore, candidateNews, indicators).passed
     )
-    // 1순위는 소수점까지 유지한 실측 기반 점수(rawAdjustedScore) — 동점 확률이 거의 없다.
-    // 그래도 남는 동점은 후보 배열 순서가 아니라, 그날의 실측 등락률·거래량 변화율 크기로 가른다.
+    // tier(정확히 일치 → 조건 완화) 우선, 같은 tier 안에서는 소수점까지 유지한 실측 기반 점수
+    // (rawAdjustedScore)로 정렬 — 동점 확률이 거의 없고, 남는 동점은 그날의 실측 등락률·거래량
+    // 변화율 크기로, 그래도 같으면 배열 순서가 아니라 종목명으로 가른다(항상 같은 결과가 나오지 않도록).
     .sort((a, b) => {
+      if (a.matchTier !== b.matchTier) return a.matchTier - b.matchTier
       if (b.rawAdjustedScore !== a.rawAdjustedScore) return b.rawAdjustedScore - a.rawAdjustedScore
       const changeDiff = Math.abs(b.quote?.changePercent ?? 0) - Math.abs(a.quote?.changePercent ?? 0)
       if (changeDiff !== 0) return changeDiff
-      return Math.abs(b.indicators?.volumeChangeRate ?? 0) - Math.abs(a.indicators?.volumeChangeRate ?? 0)
+      const volumeDiff = Math.abs(b.indicators?.volumeChangeRate ?? 0) - Math.abs(a.indicators?.volumeChangeRate ?? 0)
+      if (volumeDiff !== 0) return volumeDiff
+      return a.candidate.name.localeCompare(b.candidate.name)
     })
+
+  const ranked = verified
     .slice(0, 5)
-    .map(({ candidate, quote, candidateNews, indicators }, index) =>
-      mapCandidateToRecommendation(candidate, index + 1, option, basedAt, quote, candidateNews, indicators)
+    .map(({ candidate, quote, candidateNews, indicators, matchTier }, index) =>
+      mapCandidateToRecommendation(candidate, index + 1, option, basedAt, quote, candidateNews, indicators, matchTier)
     )
 
   if (ranked.length === 0) {
     throw createRecommendationError(
       RECOMMENDATION_ERROR_CODES.NO_VERIFIED_CANDIDATE,
-      '정식 시세·뉴스·리스크 검증을 모두 통과한 종목이 없어 이번 조건에서는 추천을 생성하지 않았습니다.'
+      '정식 시세·리스크 검증을 통과한 종목이 없어 이번 조건에서는 추천을 생성하지 않았습니다.'
     )
   }
 
@@ -415,6 +458,8 @@ export async function getCurrentRecommendations(option = { marketScope: 'all', p
     optionLabel: getOptionLabel(option),
     basedAt: formatDateTime(basedAt),
     recommendations: ranked,
+    // 조건을 넓혀서라도 5개를 채우려 했지만, 그 시장 안에 검증 통과 후보 자체가 5개 미만이었던 경우.
+    shortOfFive: ranked.length < 5,
   }
 }
 

@@ -23,6 +23,7 @@ export default function StockRecommendationPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [hasRequested, setHasRequested] = useState(false)
+  const [shortOfFive, setShortOfFive] = useState(false)
 
   const handleRecommend = async () => {
     setLoading(true)
@@ -33,8 +34,10 @@ export default function StockRecommendationPage() {
       const result = await getCurrentRecommendations({ marketScope, productType, horizonType })
       setRecommendations(result.recommendations)
       setBasedAt(result.basedAt)
+      setShortOfFive(Boolean(result.shortOfFive))
     } catch (e) {
       setRecommendations([])
+      setShortOfFive(false)
       setError({
         code: e.code || RECOMMENDATION_ERROR_CODES.NETWORK_OR_PROVIDER,
         message: e.message || '실시간 추천 데이터를 불러올 수 없습니다.',
@@ -48,7 +51,7 @@ export default function StockRecommendationPage() {
     <div className="stock-page">
       <header className="stock-header">
         <h1>주식 추천</h1>
-        <p className="stock-sub">공식 시세·뉴스 검증을 통과한 매수 후보와 리스크 기준을 확인합니다.</p>
+        <p className="stock-sub">공식 시세로 검증된 매수 후보와 리스크 기준을 확인합니다. 공식 뉴스는 참고 신호로 함께 표시됩니다.</p>
       </header>
 
       <nav className="stock-sub-nav" aria-label="주식 추천 하위 메뉴">
@@ -123,6 +126,12 @@ export default function StockRecommendationPage() {
               <h2 className="section-title">추천 TOP5</h2>
               {recommendations.length > 0 && <span className="stock-result-meta">{recommendations.length}개 표시</span>}
             </div>
+
+            {!loading && shortOfFive && recommendations.length > 0 && (
+              <p className="stock-caution-note">
+                오늘은 선택하신 조건을 넓혀도 공식 시세로 검증된 종목이 {recommendations.length}개뿐이라 5개를 채우지 못했습니다.
+              </p>
+            )}
 
             {loading && (
               <p className="stock-empty">

@@ -181,6 +181,20 @@
   color: var(--text-secondary);
 }
 
+.stock-caution-note {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: rgba(234, 179, 8, 0.12);
+  color: #a16207;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+[data-theme='dark'] .stock-caution-note {
+  background: rgba(234, 179, 8, 0.16);
+  color: #facc15;
+}
+
 .stock-empty {
   margin: 0;
   padding: 0.75rem 0;
@@ -647,6 +661,28 @@
 .recommendation-verification span.failed {
   background: rgba(239, 68, 68, 0.1);
   color: #dc2626;
+}
+
+.recommendation-verification span.neutral {
+  background: var(--input-bg);
+  color: var(--text-secondary);
+}
+
+.recommendation-relaxed-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--radius-sm);
+  background: rgba(234, 179, 8, 0.12);
+  color: #a16207;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+[data-theme='dark'] .recommendation-relaxed-note {
+  background: rgba(234, 179, 8, 0.16);
+  color: #facc15;
 }
 
 .recommendation-facts {

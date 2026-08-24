@@ -48,7 +48,7 @@ export async function getMarketBrief(baseTime = '08') {
     const status = await getStockMarketStatus(baseTime)
     let news = []
     try {
-      news = await getStockNews(['005930.KS', 'NVDA', 'SPY'])
+      news = await getStockNews(['005930.KS', 'NVDA', 'SPY'], ['삼성전자', 'NVIDIA', 'SPDR S&P 500 ETF'])
     } catch {
       news = []
     }

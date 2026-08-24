@@ -63,7 +63,7 @@ public class StockMarketService {
                 .map(String::trim)
                 .filter(s -> !s.isBlank())
                 .distinct()
-                .limit(30)
+                .limit(50)
                 .map(this::getOfficialQuote)
                 .toList();
     }
@@ -101,19 +101,20 @@ public class StockMarketService {
         // 주의: 예전에는 심볼 자체를 8개로, 합산 결과를 12건으로 잘랐다. 추천 후보가 8개보다 많으면
         // 뒤쪽 심볼은 애초에 뉴스 조회 시도조차 되지 않아 "뉴스 있음" 게이트를 항상 통과 못 했고,
         // 그 결과 추천 순위가 실제 시세와 무관하게 배열 앞쪽 종목으로 고정되는 원인이 됐다.
-        // 심볼별 조회 개수는 이미 각 프로바이더 호출에서 3건으로 제한되므로, 여기서는 후보 전체(최대 30개)가
+        // 심볼별 조회 개수는 이미 각 프로바이더 호출에서 3건으로 제한되므로, 여기서는 후보 전체(최대 50개)가
         // 빠짐없이 뉴스 조회를 시도하도록 심볼 제한만 다른 엔드포인트(getQuotes/getIndicators)와 맞춘다.
-        List<StockNewsDto> news = symbols.stream()
+        //
+        // 결과가 하나도 없어도 더 이상 예외를 던지지 않는다(과거엔 500 에러로 던져서, 시세는 멀쩡한데
+        // 그날따라 뉴스 제공사가 전부 실패하면 추천 전체가 통째로 실패했다). 뉴스는 이제 프론트에서
+        // 필수 게이트가 아니라 참고 점수로만 쓰이므로, 빈 리스트를 그대로 반환해도 추천 자체는
+        // 시세만으로 계속 진행될 수 있다.
+        return symbols.stream()
                 .map(String::trim)
                 .filter(s -> !s.isBlank())
                 .distinct()
-                .limit(30)
+                .limit(50)
                 .flatMap(symbol -> getOfficialNewsForSymbol(symbol, nameBySymbol.get(symbol)).stream())
                 .toList();
-        if (news.isEmpty()) {
-            throw new IllegalStateException("정식 뉴스 API가 설정되지 않았거나 뉴스를 가져오지 못했습니다.");
-        }
-        return news;
     }
 
     public StockProviderStatusDto getProviderStatus() {
@@ -122,7 +123,7 @@ public class StockMarketService {
                 .polygonConfigured(hasText(polygonApiKey))
                 .finnhubConfigured(hasText(finnhubApiKey))
                 .naverConfigured(hasText(naverClientId) && hasText(naverClientSecret))
-                .policy("fail-closed: 공식 시세/뉴스가 검증되지 않으면 추천을 생성하지 않음")
+                .policy("fail-closed: 공식 시세가 검증되지 않으면 추천을 생성하지 않음. 공식 뉴스는 참고 점수로만 반영되며 추천 여부를 막지 않음")
                 .build();
     }
 
@@ -135,7 +136,7 @@ public class StockMarketService {
                 .map(String::trim)
                 .filter(s -> !s.isBlank())
                 .distinct()
-                .limit(30)
+                .limit(50)
                 .map(this::getOfficialIndicators)
                 .toList();
     }

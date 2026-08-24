@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertTriangle, BadgeCheck, ChevronDown, ChevronUp, Clock3, ShieldCheck, Target } from 'lucide-react'
+import { AlertTriangle, BadgeCheck, ChevronDown, ChevronUp, Clock3, Info, ShieldCheck, Target } from 'lucide-react'
 
 function formatPrice(price, code) {
   if (typeof price !== 'number') return price
@@ -44,10 +44,12 @@ export default function RecommendationCard({ recommendation }) {
   const [expanded, setExpanded] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
   const reasonDetails = getReasonDetails(recommendation)
+  // '공식 뉴스'는 필수 통과 조건이 아니라 참고 신호이므로, 못 찾았다고 해서 뭔가 실패한 것처럼
+  // 빨간색으로 보여주지 않는다(neutral) — 시세(필수)와는 시각적으로 구분한다.
   const verificationBadges = [
-    { label: '공식 시세', passed: Boolean(recommendation.recommendedPrice && recommendation.quoteSource !== '공식 시세 미확인') },
-    { label: '공식 뉴스', passed: recommendation.officialNews?.length > 0 },
-    { label: '후보군 검증', passed: true },
+    { label: '공식 시세', state: recommendation.recommendedPrice && recommendation.quoteSource !== '공식 시세 미확인' ? 'passed' : 'failed' },
+    { label: '공식 뉴스(참고)', state: recommendation.officialNews?.length > 0 ? 'passed' : 'neutral' },
+    { label: '후보군 검증', state: 'passed' },
   ]
   const primaryRisks = recommendation.riskFactors.slice(0, 2)
 
@@ -91,12 +93,19 @@ export default function RecommendationCard({ recommendation }) {
         <>
       <div className="recommendation-verification" aria-label="추천 검증 상태">
         {verificationBadges.map((badge) => (
-          <span key={badge.label} className={badge.passed ? 'passed' : 'failed'}>
+          <span key={badge.label} className={badge.state}>
             <ShieldCheck size={13} aria-hidden />
             {badge.label}
           </span>
         ))}
       </div>
+
+      {recommendation.filterRelaxed && (
+        <div className="recommendation-relaxed-note">
+          <Info size={14} aria-hidden />
+          <span>{recommendation.filterRelaxedNote}</span>
+        </div>
+      )}
 
       <dl className="recommendation-facts recommendation-facts-primary">
         <div>
