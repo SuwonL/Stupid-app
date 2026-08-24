@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, Sparkles } from 'lucide-react'
 import DailyStockKnowledge from '../components/stocks/DailyStockKnowledge'
 import MorningMarketBrief from '../components/stocks/MorningMarketBrief'
 import RecommendationCard from '../components/stocks/RecommendationCard'
@@ -25,6 +25,11 @@ export default function StockRecommendationPage() {
   const [hasRequested, setHasRequested] = useState(false)
   const [shortOfFive, setShortOfFive] = useState(false)
 
+  const [specialPick, setSpecialPick] = useState(null)
+  const [specialLoading, setSpecialLoading] = useState(false)
+  const [specialError, setSpecialError] = useState(null)
+  const [specialBasedAt, setSpecialBasedAt] = useState('')
+
   const handleRecommend = async () => {
     setLoading(true)
     setError(null)
@@ -44,6 +49,27 @@ export default function StockRecommendationPage() {
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 필터 없이(전체 시장·전체 상품·전체 투자기간) 기존 다각화 분석 파이프라인을 그대로 돌려서
+  // 종합 점수 1위 한 종목만 뽑아 보여준다. "무조건 오른다"는 보장은 어떤 데이터로도 할 수 없으므로
+  // — 여기서도 점수가 가장 높다는 뜻이지 상승을 확정한다는 뜻은 아니라고 명확히 표시한다.
+  const handleSpecialPick = async () => {
+    setSpecialLoading(true)
+    setSpecialError(null)
+    try {
+      const result = await getCurrentRecommendations({ marketScope: 'all', productType: 'all', horizonType: 'all' })
+      setSpecialPick(result.recommendations[0] || null)
+      setSpecialBasedAt(result.basedAt)
+    } catch (e) {
+      setSpecialPick(null)
+      setSpecialError({
+        code: e.code || RECOMMENDATION_ERROR_CODES.NETWORK_OR_PROVIDER,
+        message: e.message || '스페셜 추천 데이터를 불러올 수 없습니다.',
+      })
+    } finally {
+      setSpecialLoading(false)
     }
   }
 
@@ -84,6 +110,48 @@ export default function StockRecommendationPage() {
 
       {activeTab === 'recommend' && (
         <>
+          <section className="stock-special-panel card">
+            <div className="stock-special-panel-head">
+              <div>
+                <h2 className="section-title">
+                  <Sparkles size={16} aria-hidden /> 스페셜 추천 (베스트 1종목)
+                </h2>
+                <p>필터와 무관하게 전체 시장을 다각도(시세·모멘텀·거래량·리스크·투자기간 적합성)로 분석해 종합 점수 1위 한 종목만 뽑습니다.</p>
+              </div>
+              <button type="button" className="stock-special-btn" onClick={handleSpecialPick} disabled={specialLoading}>
+                {specialLoading ? (
+                  <>
+                    <span className="spinner-inline" />
+                    분석 중
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} aria-hidden />
+                    베스트 1종목 뽑기
+                  </>
+                )}
+              </button>
+            </div>
+
+            <p className="stock-special-disclaimer">
+              어떤 지표도 상승을 보장하지 않습니다. "종합 점수가 가장 높다"는 뜻이지 "무조건 오른다"는 뜻이 아닙니다 — 참고용으로만 활용하세요.
+            </p>
+
+            {specialError && (
+              <div className={`stock-error ${specialError.code === RECOMMENDATION_ERROR_CODES.NO_VERIFIED_CANDIDATE ? 'caution' : ''}`}>
+                <strong>{ERROR_TITLES[specialError.code] || '스페셜 추천 실패'}</strong>
+                <p>{specialError.message}</p>
+              </div>
+            )}
+
+            {specialPick && !specialLoading && (
+              <div className="stock-special-result">
+                <p className="stock-special-result-meta">기준 시각: {specialBasedAt}</p>
+                <RecommendationCard recommendation={specialPick} />
+              </div>
+            )}
+          </section>
+
           <RecommendationFilter
             marketScope={marketScope}
             productType={productType}
