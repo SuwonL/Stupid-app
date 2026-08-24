@@ -342,14 +342,17 @@ export async function getCurrentRecommendations(option = { marketScope: 'all', p
       '정식 시세 API가 설정되지 않아 실시간 추천을 생성하지 않았습니다. KIS/Polygon/Finnhub API 키를 먼저 설정해 주세요.'
     )
   }
-  const symbols = filtered.map((candidate) => candidate.symbol).filter(Boolean)
+  // symbols/names는 반드시 같은 candidate 집합에서 같은 순서로 뽑아야 백엔드에서 1:1로 대응된다.
+  const symbolCandidates = filtered.filter((candidate) => candidate.symbol)
+  const symbols = symbolCandidates.map((candidate) => candidate.symbol)
+  const names = symbolCandidates.map((candidate) => candidate.name)
   let quotes
   let newsItems
   let indicatorsList
   try {
     ;[quotes, newsItems, indicatorsList] = await Promise.all([
       getStockQuotes(symbols),
-      getStockNews(symbols),
+      getStockNews(symbols, names),
       getStockIndicators(symbols),
     ])
   } catch (e) {

@@ -153,11 +153,17 @@ export async function getStockMarketStatus(baseTime) {
   return parseJsonUtf8(res, url)
 }
 
-export async function getStockNews(symbols) {
+// names: symbols와 같은 순서·개수로 대응하는 종목명(선택). 국내 종목은 네이버 뉴스 검색을
+// "005930.KS" 같은 티커 문자열이 아니라 "삼성전자" 같은 실제 종목명으로 해야 실제 기사와 매칭된다 —
+// 아래 getOfficialNewsForSymbol 주석 참고.
+export async function getStockNews(symbols, names = []) {
   const cleanSymbols = (symbols || []).filter(Boolean)
   if (cleanSymbols.length === 0) return []
   const params = new URLSearchParams()
   params.set('symbols', cleanSymbols.join(','))
+  if (names && names.length === symbols.length) {
+    params.set('names', names.map((n) => n || '').join(','))
+  }
   const url = `${API_BASE}/stocks/news?${params.toString()}`
   let res
   try {

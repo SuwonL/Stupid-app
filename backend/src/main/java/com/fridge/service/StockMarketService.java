@@ -77,6 +77,27 @@ public class StockMarketService {
     }
 
     public List<StockNewsDto> getNews(List<String> symbols) {
+        return getNews(symbols, List.of());
+    }
+
+    /**
+     * names는 symbols와 같은 순서·개수로 대응하는 종목명(선택, 없으면 빈 리스트).
+     * 국내 종목의 네이버 뉴스 검색은 "005930.KS" 같은 티커 문자열이 아니라 "삼성전자" 같은
+     * 실제 종목명으로 검색해야 한다 — 실제 기사 본문·제목엔 티커가 그대로 쓰이는 경우가 거의 없고,
+     * (거래소 접미사까지 붙은) "005930.KS" 형태는 로이터/블룸버그식 표기를 그대로 인용하는
+     * 국제 신디케이션 기사에만 드물게 등장한다. 그래서 티커로 검색하면 삼성전자·NAVER처럼
+     * 그런 신디케이션 기사가 있는 대형주만 우연히 걸리고, 나머지 종목(중소형주·ETF)은 실제로는
+     * 뉴스가 있어도 항상 0건으로 조회돼 추천 후보에서 빠지는 문제가 있었다.
+     */
+    public List<StockNewsDto> getNews(List<String> symbols, List<String> names) {
+        Map<String, String> nameBySymbol = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < symbols.size(); i++) {
+            String symbol = symbols.get(i) == null ? null : symbols.get(i).trim();
+            if (symbol == null || symbol.isBlank()) continue;
+            String name = (names != null && i < names.size()) ? names.get(i) : null;
+            if (name != null) name = name.trim();
+            if (name != null && !name.isBlank()) nameBySymbol.putIfAbsent(symbol, name);
+        }
         // 주의: 예전에는 심볼 자체를 8개로, 합산 결과를 12건으로 잘랐다. 추천 후보가 8개보다 많으면
         // 뒤쪽 심볼은 애초에 뉴스 조회 시도조차 되지 않아 "뉴스 있음" 게이트를 항상 통과 못 했고,
         // 그 결과 추천 순위가 실제 시세와 무관하게 배열 앞쪽 종목으로 고정되는 원인이 됐다.
@@ -87,7 +108,7 @@ public class StockMarketService {
                 .filter(s -> !s.isBlank())
                 .distinct()
                 .limit(30)
-                .flatMap(symbol -> getOfficialNewsForSymbol(symbol).stream())
+                .flatMap(symbol -> getOfficialNewsForSymbol(symbol, nameBySymbol.get(symbol)).stream())
                 .toList();
         if (news.isEmpty()) {
             throw new IllegalStateException("정식 뉴스 API가 설정되지 않았거나 뉴스를 가져오지 못했습니다.");
@@ -350,9 +371,9 @@ public class StockMarketService {
         }
     }
 
-    private List<StockNewsDto> getOfficialNewsForSymbol(String symbol) {
+    private List<StockNewsDto> getOfficialNewsForSymbol(String symbol, String name) {
         if (hasText(naverClientId) && isDomesticSymbol(symbol)) {
-            List<StockNewsDto> naverNews = getNaverNews(symbol);
+            List<StockNewsDto> naverNews = getNaverNews(symbol, name);
             if (!naverNews.isEmpty()) return naverNews;
         }
         if (hasText(polygonApiKey) && !isDomesticSymbol(symbol)) {
@@ -365,9 +386,26 @@ public class StockMarketService {
         return List.of();
     }
 
-    private List<StockNewsDto> getNaverNews(String symbol) {
+    private String stripDomesticSuffix(String symbol) {
+        return symbol.replace(".KS", "").replace(".KQ", "");
+    }
+
+    // 종목명이 있으면 종목명으로 먼저 검색(실제 기사가 매칭되는 정상 경로), 결과가 없으면
+    // 거래소 접미사를 뗀 순수 코드로 한 번 더 시도한다. 둘 다 없으면(과거 동작 유지) 원래 심볼로 검색.
+    private List<StockNewsDto> getNaverNews(String symbol, String name) {
+        String bareCode = stripDomesticSuffix(symbol);
+        String primaryQuery = hasText(name) ? name : bareCode;
+        List<StockNewsDto> primary = searchNaverNews(symbol, primaryQuery);
+        if (!primary.isEmpty()) return primary;
+        if (!primaryQuery.equals(bareCode)) {
+            return searchNaverNews(symbol, bareCode);
+        }
+        return List.of();
+    }
+
+    private List<StockNewsDto> searchNaverNews(String symbol, String query) {
         try {
-            URI uri = URI.create("https://openapi.naver.com/v1/search/news.json?display=3&sort=date&query=" + encode(symbol));
+            URI uri = URI.create("https://openapi.naver.com/v1/search/news.json?display=3&sort=date&query=" + encode(query));
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Naver-Client-Id", naverClientId);
             headers.set("X-Naver-Client-Secret", naverClientSecret);

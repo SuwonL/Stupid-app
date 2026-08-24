@@ -35,9 +35,15 @@ public class StockController {
     }
 
     @GetMapping(value = "/news", produces = "application/json;charset=UTF-8")
-    public ResponseEntity<List<StockNewsDto>> news(@RequestParam String symbols) {
-        List<String> parsed = Arrays.stream(symbols.split(",")).toList();
-        return ResponseEntity.ok(stockMarketService.getNews(parsed));
+    public ResponseEntity<List<StockNewsDto>> news(
+            @RequestParam String symbols,
+            @RequestParam(required = false) String names
+    ) {
+        List<String> parsedSymbols = Arrays.stream(symbols.split(",")).toList();
+        List<String> parsedNames = (names == null || names.isBlank())
+                ? List.of()
+                : Arrays.stream(names.split(",", -1)).toList();
+        return ResponseEntity.ok(stockMarketService.getNews(parsedSymbols, parsedNames));
     }
 
     @GetMapping(value = "/provider-status", produces = "application/json;charset=UTF-8")
