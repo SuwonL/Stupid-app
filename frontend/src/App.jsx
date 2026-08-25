@@ -7,6 +7,7 @@ import CalendarPage from './pages/CalendarPage'
 import StockPage from './pages/StockPage'
 import MemePage from './pages/MemePage'
 import ChildbirthChecklistPage from './pages/ChildbirthChecklistPage'
+import SeogwipoTestPage from './pages/SeogwipoTestPage'
 import ProjectInfoModal from './components/ProjectInfoModal'
 
 const THEME_KEY = 'fridge-menu-theme'
@@ -73,6 +74,9 @@ export default function App() {
           <NavLink to="/memes" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`} end>
             최신 밈
           </NavLink>
+          <NavLink to="/seogwipo-test" className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`} end>
+            서귀포 테스트
+          </NavLink>
           {/* 출산 준비물 메뉴는 임시로 숨김 (라우트/페이지는 유지) */}
         </div>
         <div className="app-nav-right">
@@ -110,6 +114,7 @@ export default function App() {
           <Route path="/stocks" element={<StockPage />} />
           <Route path="/memes" element={<MemePage />} />
           <Route path="/childbirth-checklist" element={<ChildbirthChecklistPage />} />
+          <Route path="/seogwipo-test" element={<SeogwipoTestPage />} />
         </Routes>
       </main>
 
