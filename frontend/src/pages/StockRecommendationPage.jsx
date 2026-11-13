@@ -23,6 +23,8 @@ export default function StockRecommendationPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [hasRequested, setHasRequested] = useState(false)
+  const [scanWarnings, setScanWarnings] = useState([])
+  const [specialScanWarnings, setSpecialScanWarnings] = useState([])
   const [shortOfFive, setShortOfFive] = useState(false)
 
   const [specialPick, setSpecialPick] = useState(null)
@@ -31,12 +33,14 @@ export default function StockRecommendationPage() {
   const [specialBasedAt, setSpecialBasedAt] = useState('')
 
   const handleRecommend = async () => {
+    setScanWarnings([])
     setLoading(true)
     setError(null)
     setHasRequested(true)
 
     try {
       const result = await getCurrentRecommendations({ marketScope, productType, horizonType })
+      setScanWarnings(result.scanWarnings || [])
       setRecommendations(result.recommendations)
       setBasedAt(result.basedAt)
       setShortOfFive(Boolean(result.shortOfFive))
@@ -56,10 +60,12 @@ export default function StockRecommendationPage() {
   // 종합 점수 1위 한 종목만 뽑아 보여준다. "무조건 오른다"는 보장은 어떤 데이터로도 할 수 없으므로
   // — 여기서도 점수가 가장 높다는 뜻이지 상승을 확정한다는 뜻은 아니라고 명확히 표시한다.
   const handleSpecialPick = async () => {
+    setSpecialScanWarnings([])
     setSpecialLoading(true)
     setSpecialError(null)
     try {
       const result = await getCurrentRecommendations({ marketScope: 'all', productType: 'all', horizonType: 'all' })
+      setSpecialScanWarnings(result.scanWarnings || [])
       setSpecialPick(result.recommendations[0] || null)
       setSpecialBasedAt(result.basedAt)
     } catch (e) {
@@ -137,6 +143,7 @@ export default function StockRecommendationPage() {
               어떤 지표도 상승을 보장하지 않습니다. "종합 점수가 가장 높다"는 뜻이지 "무조건 오른다"는 뜻이 아닙니다 — 참고용으로만 활용하세요.
             </p>
 
+            <ScanWarnings warnings={specialScanWarnings} />
             {specialError && (
               <div className={`stock-error ${specialError.code === RECOMMENDATION_ERROR_CODES.NO_VERIFIED_CANDIDATE ? 'caution' : ''}`}>
                 <strong>{ERROR_TITLES[specialError.code] || '스페셜 추천 실패'}</strong>
@@ -182,6 +189,7 @@ export default function StockRecommendationPage() {
             </button>
           </section>
 
+          <ScanWarnings warnings={scanWarnings} />
           {error && (
             <div className={`stock-error ${error.code === RECOMMENDATION_ERROR_CODES.NO_VERIFIED_CANDIDATE ? 'caution' : ''}`}>
               <strong>{ERROR_TITLES[error.code] || '실시간 추천 실패'}</strong>
@@ -238,6 +246,18 @@ export default function StockRecommendationPage() {
       <section className="stock-disclaimer card">
         <p>본 추천은 공식 데이터와 룰 기반 검증을 활용한 투자 참고 정보입니다. 최종 매수·매도 책임은 본인에게 있으며 수익을 보장하지 않습니다.</p>
       </section>
+    </div>
+  )
+}
+
+
+function ScanWarnings({ warnings }) {
+  if (!warnings.length) return null
+  return (
+    <div className="stock-error caution" role="status" aria-live="polite">
+      <strong>시장 스캔 확인 필요</strong>
+      {warnings.map((message) => <p key={message}>{message}</p>)}
+      <p>스캔 범위가 제한되어 일부 종목이 빠질 수 있습니다. 조회된 시세로 검증한 후보만 표시합니다.</p>
     </div>
   )
 }

@@ -4,6 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fridge.dto.StockIndicatorsDto;
 import com.fridge.dto.StockMarketStatusDto;
 import com.fridge.dto.StockMoverDto;
+import com.fridge.dto.StockMoverScanDto;
+import com.fridge.dto.StockMoverScanDto.MarketStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.web.client.RestClientResponseException;
+import java.time.Instant;
 import com.fridge.dto.StockNewsDto;
 import com.fridge.dto.StockProviderStatusDto;
 import com.fridge.dto.StockQuoteDto;
@@ -31,6 +37,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class StockMarketService {
 
+    private static final Logger log = LoggerFactory.getLogger(StockMarketService.class);
     private static final String KIS_SOURCE = "KIS Developers Open API";
     private static final String POLYGON_SOURCE = "Polygon.io Stocks API";
     private static final String FINNHUB_SOURCE = "Finnhub Stock API";
@@ -124,34 +131,54 @@ public class StockMarketService {
      * API, 해외는 Polygon 상승률 상위(top gainers) 스냅샷을 쓴다. 한쪽 프로바이더가 실패해도
      * (키 미설정, 응답 실패 등) 나머지 결과는 그대로 반환한다 — 실패했다고 전체를 막지 않는다.
      */
+    // Legacy list endpoint remains compatible; diagnostics are available via /movers/scan.
     public List<StockMoverDto> getMovers(String region, int limit) {
-        boolean wantDomestic = !"overseas".equals(region);
-        boolean wantOverseas = !"domestic".equals(region);
-        List<StockMoverDto> result = new ArrayList<>();
-        if (wantDomestic) result.addAll(getKisMovers(limit));
-        if (wantOverseas) result.addAll(getPolygonMovers(limit));
-        return result.stream()
-                .filter(m -> m.getError() == null)
-                .sorted((a, b) -> {
-                    double ac = a.getChangePercent() == null ? Double.NEGATIVE_INFINITY : a.getChangePercent();
-                    double bc = b.getChangePercent() == null ? Double.NEGATIVE_INFINITY : b.getChangePercent();
-                    return Double.compare(bc, ac);
-                })
-                .limit(limit)
-                .toList();
+        return scanMovers(region, limit).movers();
     }
 
-    // 코스피(0001)·코스닥(1001)을 각각 조회해 합친다 — KIS 등락률 순위 API는 시장을 나눠서 요청해야 한다.
-    private List<StockMoverDto> getKisMovers(int limit) {
-        if (!hasKisConfig()) return List.of();
-        List<StockMoverDto> movers = new ArrayList<>();
-        for (String marketCode : List.of("0001", "1001")) {
-            movers.addAll(getKisMoversForMarket(marketCode, limit));
+    public StockMoverScanDto scanMovers(String region, int limit) {
+        if (!List.of("all", "domestic", "overseas").contains(region)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid market region");
         }
-        return movers;
+        int boundedLimit = Math.min(Math.max(limit, 1), 50);
+        List<StockMoverDto> result = new ArrayList<>();
+        List<MarketStatus> markets = new ArrayList<>();
+        if (!"overseas".equals(region)) {
+            for (String code : List.of("0001", "1001")) {
+                String market = "0001".equals(code) ? "KOSPI" : "KOSDAQ";
+                if (!hasKisConfig()) {
+                    markets.add(scanStatus(market, "not_configured", "NOT_CONFIGURED", 0, 0));
+                    continue;
+                }
+                scanKisMarket(code, market, boundedLimit, result, markets);
+            }
+        }
+        if (!"domestic".equals(region)) scanPolygon(boundedLimit, result, markets);
+        List<StockMoverDto> ranked = result.stream()
+                .sorted((a, b) -> Double.compare(b.getChangePercent(), a.getChangePercent()))
+                .limit(boundedLimit).toList();
+        return new StockMoverScanDto(ranked, markets, Instant.now());
     }
 
-    private List<StockMoverDto> getKisMoversForMarket(String marketCode, int limit) {
+    private MarketStatus scanStatus(String market, String status, String code, int count, int rejected) {
+        // Never log provider bodies, URLs, exception messages, access tokens or credentials.
+        if (!"success".equals(status)) {
+            log.warn("stock_mover_scan market={} status={} code={} count={} rejected={}",
+                    market, status, code, count, rejected);
+        }
+        return new MarketStatus(market, status, code, count, rejected);
+    }
+
+    private String scanFailureCode(Exception e) {
+        if (e instanceof RestClientResponseException response) {
+            return "HTTP_" + response.getStatusCode().value();
+        }
+        return e instanceof RestClientException ? "TRANSPORT_ERROR" : "INVALID_RESPONSE";
+    }
+
+    private void scanKisMarket(String marketCode, String market, int limit,
+                               List<StockMoverDto> result, List<MarketStatus> markets) {
         try {
             URI uri = URI.create(kisBaseUrl + "/uapi/domestic-stock/v1/ranking/fluctuation"
                     + "?FID_COND_MRKT_DIV_CODE=J&FID_COND_SCR_DIV_CODE=20170"
@@ -165,59 +192,70 @@ public class StockMarketService {
             headers.set("appsecret", kisAppSecret);
             headers.set("tr_id", "FHPST01700000");
             JsonNode root = exchangeJson(uri, headers);
-            return toList(root.path("output")).stream()
-                    .limit(limit)
-                    .map(item -> {
-                        String code = item.path("stck_shrn_iscd").asText(null);
-                        Double price = parseDouble(item.path("stck_prpr").asText(null));
-                        Double changePercent = parseDouble(item.path("prdy_ctrt").asText(null));
-                        if (code == null || price == null || changePercent == null) return null;
-                        return StockMoverDto.builder()
-                                .symbol(code) // 국내 6자리 코드는 그 자체로 isDomesticSymbol()에 매칭되는 심볼
-                                .name(item.path("hts_kor_isnm").asText(code))
-                                .region("domestic")
-                                .price(price)
-                                .changePercent(changePercent)
-                                .volume(parseLong(item.path("acml_vol").asText(null)))
-                                .source(KIS_SOURCE)
-                                .build();
-                    })
-                    .filter(java.util.Objects::nonNull)
-                    .toList();
+            if (root == null || !root.hasNonNull("rt_cd")) throw new IllegalStateException();
+            if (!"0".equals(root.path("rt_cd").asText())) {
+                markets.add(scanStatus(market, "error", "PROVIDER_REJECTED", 0, 0));
+                return;
+            }
+            if (!root.path("output").isArray()) throw new IllegalStateException();
+            List<StockMoverDto> valid = new ArrayList<>();
+            int rejected = 0;
+            for (JsonNode item : root.path("output")) {
+                String code = item.path("stck_shrn_iscd").asText("");
+                String name = item.path("hts_kor_isnm").asText("");
+                Double price = parseDouble(item.path("stck_prpr").asText(null));
+                Double change = parseDouble(item.path("prdy_ctrt").asText(null));
+                Long volume = parseLong(item.path("acml_vol").asText(null));
+                if (!code.matches("\\d{6}") || name.isBlank() || price == null || !Double.isFinite(price)
+                        || price <= 0 || change == null || !Double.isFinite(change) || volume == null || volume < 0) {
+                    rejected++;
+                    continue;
+                }
+                valid.add(StockMoverDto.builder().symbol(code).name(name).region("domestic")
+                        .price(price).changePercent(change).volume(volume).source(KIS_SOURCE).build());
+            }
+            List<StockMoverDto> selected = valid.stream().limit(limit).toList();
+            result.addAll(selected);
+            String status = rejected > 0 ? (valid.isEmpty() ? "error" : "partial")
+                    : (valid.isEmpty() ? "empty" : "success");
+            markets.add(scanStatus(market, status, rejected > 0 ? "INVALID_ROWS" : "OK", selected.size(), rejected));
         } catch (Exception e) {
-            // 필드명이 실제 KIS 응답과 다르거나 API 정책이 바뀌었을 수 있다 — 실패해도 예외를 위로 던지지 않고
-            // 그냥 빈 결과로 처리한다(fail-closed). 큐레이션된 후보 목록은 이 실패와 무관하게 계속 동작한다.
-            return List.of();
+            markets.add(scanStatus(market, "error", scanFailureCode(e), 0, 0));
         }
     }
 
-    private List<StockMoverDto> getPolygonMovers(int limit) {
-        if (!hasText(polygonApiKey)) return List.of();
+    private void scanPolygon(int limit, List<StockMoverDto> result, List<MarketStatus> markets) {
+        if (!hasText(polygonApiKey)) {
+            markets.add(scanStatus("US", "not_configured", "NOT_CONFIGURED", 0, 0));
+            return;
+        }
         try {
             URI uri = URI.create("https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/gainers?apiKey=" + encode(polygonApiKey));
             JsonNode root = exchangeJson(uri, new HttpHeaders());
-            return toList(root.path("tickers")).stream()
-                    .limit(limit)
-                    .map(item -> {
-                        String symbol = item.path("ticker").asText(null);
-                        Double price = readDouble(item.path("day").path("c"));
-                        if (price == null || price == 0) price = readDouble(item.path("min").path("c"));
-                        Double changePercent = readDouble(item.path("todaysChangePerc"));
-                        if (symbol == null || price == null || changePercent == null) return null;
-                        return StockMoverDto.builder()
-                                .symbol(symbol)
-                                .name(symbol)
-                                .region("overseas")
-                                .price(round(price))
-                                .changePercent(round(changePercent))
-                                .volume(readLong(item.path("day").path("v")))
-                                .source(POLYGON_SOURCE)
-                                .build();
-                    })
-                    .filter(java.util.Objects::nonNull)
-                    .toList();
+            if (root == null || !root.path("tickers").isArray()) throw new IllegalStateException();
+            List<StockMoverDto> valid = new ArrayList<>();
+            int rejected = 0;
+            for (JsonNode item : root.path("tickers")) {
+                String symbol = item.path("ticker").asText("");
+                Double price = readDouble(item.path("day").path("c"));
+                if (price == null || price == 0) price = readDouble(item.path("min").path("c"));
+                Double change = readDouble(item.path("todaysChangePerc"));
+                if (symbol.isBlank() || price == null || !Double.isFinite(price) || price <= 0
+                        || change == null || !Double.isFinite(change)) {
+                    rejected++;
+                    continue;
+                }
+                valid.add(StockMoverDto.builder().symbol(symbol).name(symbol).region("overseas")
+                        .price(round(price)).changePercent(round(change))
+                        .volume(readLong(item.path("day").path("v"))).source(POLYGON_SOURCE).build());
+            }
+            List<StockMoverDto> selected = valid.stream().limit(limit).toList();
+            result.addAll(selected);
+            String status = rejected > 0 ? (valid.isEmpty() ? "error" : "partial")
+                    : (valid.isEmpty() ? "empty" : "success");
+            markets.add(scanStatus("US", status, rejected > 0 ? "INVALID_ROWS" : "OK", selected.size(), rejected));
         } catch (Exception e) {
-            return List.of();
+            markets.add(scanStatus("US", "error", scanFailureCode(e), 0, 0));
         }
     }
 
@@ -670,3 +708,4 @@ public class StockMarketService {
                 .build();
     }
 }
+

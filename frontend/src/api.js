@@ -197,20 +197,36 @@ export async function getStockIndicators(symbols) {
   return parseJsonUtf8(res, url)
 }
 
-// 큐레이션된 고정 후보 목록이 아니라, 시장 전체에서 그날 실제로 등락률이 높은 종목을 실시간으로
-// 스캔해서 가져온다. region: 'all' | 'domestic' | 'overseas'. 프로바이더 실패 시 빈 배열(정상 동작,
-// 큐레이션 후보만으로 계속 진행) — 에러를 던지지 않는다.
+// Keep the list helper for callers that only need candidates.
 export async function getStockMovers(region = 'all', limit = 30) {
-  const params = new URLSearchParams()
-  params.set('region', region)
-  params.set('limit', String(limit))
-  const url = `${API_BASE}/stocks/movers?${params.toString()}`
+  return (await getStockMoverScan(region, limit)).movers
+}
+
+export async function getStockMoverScan(region = 'all', limit = 30) {
+  const expectedMarkets = region === 'domestic' ? ['KOSPI', 'KOSDAQ']
+    : region === 'overseas' ? ['US'] : ['KOSPI', 'KOSDAQ', 'US']
+  const params = new URLSearchParams({ region, limit: String(limit) })
+  const url = `${API_BASE}/stocks/movers/scan?${params.toString()}`
   try {
     const res = await fetchWithTimeout(url, { headers: { Accept: 'application/json;charset=UTF-8' } }, FETCH_TIMEOUT_MS)
-    if (!res.ok) return []
-    return await parseJsonUtf8(res, url)
+    if (!res.ok) throw new Error('Scan request failed')
+    const scan = await parseJsonUtf8(res, url)
+    const statuses = ['success', 'empty', 'partial', 'error', 'not_configured']
+    if (!Array.isArray(scan?.movers) || !Array.isArray(scan?.markets)
+      || scan.markets.length !== expectedMarkets.length
+      || !expectedMarkets.every((market) => scan.markets.filter((m) => m?.market === market).length === 1)
+      || !scan.markets.every((m) => statuses.includes(m.status))
+      || !scan.checkedAt || !Number.isFinite(Date.parse(scan.checkedAt))) {
+      throw new Error('Invalid scan response')
+    }
+    return scan
   } catch {
-    return []
+    // Optional discovery may fail, but must never masquerade as a successful empty scan.
+    return {
+      movers: [],
+      markets: expectedMarkets.map((market) => ({ market, status: 'error', code: 'SCAN_UNAVAILABLE', count: 0, rejectedCount: 0 })),
+      checkedAt: null,
+    }
   }
 }
 
@@ -258,3 +274,4 @@ export async function getMemeVideos(term) {
   if (!res.ok) throw new Error(`밈 관련 영상 조회 실패 (${res.status}). URL: ${url}`)
   return parseJsonUtf8(res, url)
 }
+
