@@ -1,3 +1,4 @@
+import { getScanWarnings } from './scanWarnings.js'
 import {
   HORIZON_LABELS,
   INVESTMENT_HORIZON_OPTIONS,
@@ -8,7 +9,7 @@ import {
   mockRecommendationCandidates,
 } from '../data/mockRecommendations'
 import { mockFeedbackRules } from '../data/mockEvaluationResults'
-import { getStockIndicators, getStockMovers, getStockNews, getStockProviderStatus, getStockQuotes } from '../api'
+import { getStockIndicators, getStockMoverScan, getStockNews, getStockProviderStatus, getStockQuotes } from '../api'
 
 const SCORE_WEIGHTS = {
   officialQuote: 25,
@@ -356,7 +357,7 @@ const MATCH_TIER_LABELS = {
 }
 
 // 큐레이션된 32개 종목만으로는 "시장 전체에서 오르는 종목을 찾아준다"는 약속을 지킬 수 없다 —
-// 그래서 국내(코스피+코스닥)·해외 증시 전체를 실시간으로 스캔한 등락률 상위 종목(getStockMovers)도
+// 그래서 국내(코스피+코스닥)·해외 증시 전체를 실시간으로 스캔한 등락률 상위 종목(getStockMoverScan)도
 // 후보에 합친다. 이 종목들은 공식 API가 그날 실제로 찾아낸 결과이지, 미리 정해둔 목록이 아니다.
 // 다만 스캔 결과에는 뉴스·과거 지표까지 개별 조회하면 API 호출량이 너무 커지므로(무료 API 쿼터 문제),
 // 시세만 그대로 쓰고 뉴스·기술 지표는 비워둔다 — '공식 뉴스'는 이미 참고 신호일 뿐이라 문제없다.
@@ -433,15 +434,14 @@ export async function getCurrentRecommendations(option = { marketScope: 'all', p
   let quotes
   let newsItems
   let indicatorsList
-  let movers
+  let scan
   try {
-    ;[quotes, newsItems, indicatorsList, movers] = await Promise.all([
+    ;[quotes, newsItems, indicatorsList, scan] = await Promise.all([
       getStockQuotes(symbols),
       getStockNews(symbols, names),
       getStockIndicators(symbols),
-      // 시장 전체 실시간 스캔. 프로바이더가 실패해도 빈 배열만 돌아오고 예외를 던지지 않으므로
-      // (getStockMovers 구현 참고) 큐레이션 후보 검증에는 영향이 없다.
-      getStockMovers(normalized.marketScope),
+      // Optional discovery returns per-market diagnostics even when the scan fails.
+      getStockMoverScan(normalized.marketScope),
     ])
   } catch (e) {
     throw createRecommendationError(
@@ -449,6 +449,8 @@ export async function getCurrentRecommendations(option = { marketScope: 'all', p
       `공식 시세 또는 뉴스 조회에 실패했습니다. 잠시 후 다시 시도해 주세요. (${e.message})`
     )
   }
+  const movers = scan.movers
+  const scanWarnings = getScanWarnings(scan)
   const quoteMap = new Map(
     quotes
       .filter((quote) => quote && !quote.error && quote.price != null && quote.source !== 'mock')
@@ -541,6 +543,7 @@ export async function getCurrentRecommendations(option = { marketScope: 'all', p
   }
 
   return {
+    scanWarnings,
     option: normalized,
     optionLabel: getOptionLabel(option),
     basedAt: formatDateTime(basedAt),
@@ -561,3 +564,4 @@ export function updateRecommendationRules(previousRules, analysisResults) {
     ].slice(-5),
   }
 }
+

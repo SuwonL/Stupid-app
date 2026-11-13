@@ -3,6 +3,7 @@ package com.fridge.web;
 import com.fridge.dto.StockIndicatorsDto;
 import com.fridge.dto.StockMarketStatusDto;
 import com.fridge.dto.StockMoverDto;
+import com.fridge.dto.StockMoverScanDto;
 import com.fridge.dto.StockNewsDto;
 import com.fridge.dto.StockProviderStatusDto;
 import com.fridge.dto.StockQuoteDto;
@@ -58,6 +59,14 @@ public class StockController {
         return ResponseEntity.ok(stockMarketService.getIndicators(parsed));
     }
 
+    @GetMapping(value = "/movers/scan", produces = "application/json;charset=UTF-8")
+    public ResponseEntity<StockMoverScanDto> scanMovers(
+            @RequestParam(defaultValue = "all") String region,
+            @RequestParam(defaultValue = "30") int limit
+    ) {
+        return ResponseEntity.ok(stockMarketService.scanMovers(region, limit));
+    }
+
     // 큐레이션된 고정 후보 목록이 아니라, 시장 전체(코스피/코스닥/미국)에서 그날 실제로 등락률이
     // 높은 종목을 실시간으로 스캔해서 돌려준다. region: all(기본) | domestic | overseas
     @GetMapping(value = "/movers", produces = "application/json;charset=UTF-8")
@@ -68,3 +77,4 @@ public class StockController {
         return ResponseEntity.ok(stockMarketService.getMovers(region, Math.min(Math.max(limit, 1), 50)));
     }
 }
+
